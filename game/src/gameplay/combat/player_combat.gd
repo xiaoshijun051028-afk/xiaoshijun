@@ -122,6 +122,68 @@ func take_damage(amount: int) -> int:
 	return old - hp
 
 
+# =========================================================================
+# 完美格挡（ENG-S1-04 / AC-S1-03 / AC-S4-02）
+# =========================================================================
+
+## 慢动作（完美格挡专属，ENG-S1-04）。本类是「实际写 Engine.time_scale 的唯一之处」
+## （architecture.md §5.2 / EventBus.time_dilation_* 注释）。共鸣终结技不进慢动作（AUD-1）。
+var _time_dilating: bool = false
+var _slowmo_timer: SceneTreeTimer = null
+
+
+## 完美格挡：在格挡判定窗（PARRY_WINDOW）内挡下攻击 → 触发完美格。
+## 返回是否构成完美格（仅当处于 Parry 且仍 armed 时为真）；否则不改变任何状态。
+## `attacker` 为来袭攻击者（敌人实体），可传 null（无实体时仅产慢动作+共鸣，便于演练/测试）。
+func parry_incoming(attacker: Node3D = null) -> bool:
+	if current_state_name() != STATE_PARRY:
+		return false
+	var ps := state_machine.current_state as ParryState
+	if ps == null or not ps.is_armed():
+		return false
+	_perform_perfect_parry(attacker)
+	return true
+
+
+func _perform_perfect_parry(attacker: Node3D) -> void:
+	# 共鸣 +5（P4 支柱，经唯一增益入口）
+	ResonancePool.add(GameConstants.GAIN_PERFECT_PARRY, ResonancePool.SOURCE_PERFECT_PARRY)
+	# 广播事实（过去式信号，不改敌人状态 —— 敌人经 enemy_staggered 自行进入 Stagger）
+	EventBus.perfect_parry_landed.emit(attacker)
+	EventBus.enemy_staggered.emit(attacker, GameConstants.ENEMY_STAGGER_FRAMES)
+	# 慢动作 0.3s 墙钟（非 tick），完美格挡专属
+	start_time_dilation()
+
+
+## 启动慢动作：Engine.time_scale = 0.3，墙钟 300ms（忽略 time_scale 的计时器）后复原。
+## ⚠ 绝不用游戏 tick 计时（否则真实时长会被放大 ~3.3×，吞掉破防窗口）。
+func start_time_dilation() -> void:
+	if _time_dilating:
+		return
+	_time_dilating = true
+	Engine.time_scale = GameConstants.PARRY_SLOWMO_SCALE
+	EventBus.time_dilation_started.emit(GameConstants.PARRY_SLOWMO_SCALE, GameConstants.PARRY_SLOWMO_FRAMES)
+	_slowmo_timer = get_tree().create_timer(float(GameConstants.PARRY_SLOWMO_MSEC) / 1000.0, true, false, true)
+	_slowmo_timer.timeout.connect(_on_slowmo_timeout)
+
+
+func _on_slowmo_timeout() -> void:
+	end_time_dilation()
+
+
+## 结束慢动作：复原 time_scale = 1.0 并广播。幂等（重复调用安全，避免测试/提前打断重复发信号）。
+func end_time_dilation() -> void:
+	if not _time_dilating:
+		return
+	_time_dilating = false
+	if _slowmo_timer != null:
+		if _slowmo_timer.timeout.is_connected(_on_slowmo_timeout):
+			_slowmo_timer.timeout.disconnect(_on_slowmo_timeout)
+		_slowmo_timer = null
+	Engine.time_scale = 1.0
+	EventBus.time_dilation_ended.emit()
+
+
 func _add_state(state: CombatState, state_name: StringName) -> void:
 	state.name = String(state_name)
 	state_machine.add_child(state)
