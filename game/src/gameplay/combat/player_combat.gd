@@ -97,6 +97,11 @@ func input_parry() -> bool:
 
 
 func input_resonate() -> bool:
+	# 池不足：终结技态经 ResonateState.can_enter_state() 被 FSM 拦截，本处显式发拒绝事件，
+	# 供 HUD 灰显 / 音频拒绝提示（AC-S1-04 / ENG-S1-05；resonate.gd 注释点名的「表现侧」）。
+	if not ResonancePool.can_afford(GameConstants.FINISHER_COST):
+		EventBus.resonance_spend_rejected.emit(GameConstants.FINISHER_COST, ResonancePool.REASON_FINISHER)
+		return false
 	return _request(STATE_RESONATE)
 
 
