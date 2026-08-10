@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/src/gameplay/spike1_input_latency.gd" id="1_spike1"]
+
+[node name="Spike1InputLatency" type="Node3D"]
+script = ExtResource("1_spike1")

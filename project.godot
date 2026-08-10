@@ -1,0 +1,53 @@
+; 星陨之境 Aetherfall · Godot 4.7.1-stable 项目配置
+; 依据：architecture.md §13 附录 A / adr-001 / control-checklist §A
+; 注意：本文件是 S0 工程初始化的落点（ENG-S0-03）。Autoload 顺序即依赖顺序，不可颠倒
+;      （见 architecture.md §4.3 表：GameConstants → EventBus → ResonancePool → ...）。
+
+config_version=5
+
+[application]
+
+config/name="Aetherfall"
+config/description="星陨之境 — P4 共鸣统一垂直切片（Sprint 1）"
+; ⚠ run/main_scene 暂未设置：Boot.tscn 属 ENG-S0-06 场景工作，当前仅落地纯逻辑
+;   （state.gd / state_machine.gd）。场景补齐并校验后，在此指向
+;   res://game/scenes/boot/Boot.tscn（S0 出口要求 Boot 为 main）。
+; run/main_scene="res://game/scenes/boot/Boot.tscn"
+
+[autoload]
+
+GameConstants="*res://game/autoload/game_constants.gd"
+EventBus="*res://game/autoload/event_bus.gd"
+ResonancePool="*res://game/autoload/resonance_pool.gd"
+SaveManager="*res://game/autoload/save_manager.gd"
+InputManager="*res://game/autoload/input_manager.gd"
+AudioDirector="*res://game/autoload/audio_director.gd"
+EchoDirector="*res://game/autoload/echo_director.gd"
+DebugOverlay="*res://game/autoload/debug_overlay.gd"
+
+[physics]
+
+common/physics_ticks_per_second=60          ; §3 —— 1 tick ≡ GDD 的 1 帧（不可玩家修改）
+common/physics_interpolation=true           ; §3 / §7.4 —— 高刷去抖动，模拟不变
+3d/physics_engine="Jolt Physics"             ; 4.6 起新建 3D 项目默认
+
+[rendering]
+
+renderer/rendering_method="forward_plus"    ; SDFGI/体积雾/SSR/Compositor 必需（选错后面全失效）
+renderer/rendering_device/driver.windows="d3d12"  ; 4.6 起 Windows 导出默认；Vulkan 回退 --rendering-driver vulkan
+environment/defaults/default_environment="res://game/resources/env/base_env.tres"
+environment/glow/enabled=true
+anti_aliasing/quality/msaa_3d=2              ; 2x，stylized 干净边缘
+lights_and_shadows/directional_shadow/size=4096
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"           ; GDD S6 §⑥：1280×720–4K 适配
+window/vsync/vsync_mode=2                    ; Adaptive（可玩家改 Disabled）
+window/energy_saving/allow=0
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=false
