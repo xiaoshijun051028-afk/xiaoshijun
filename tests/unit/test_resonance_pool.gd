@@ -23,15 +23,15 @@ func after_test() -> void:
 
 func test_cap_no_overflow() -> void:
 	ResonancePool.reset_for_test(0)
-	ResonancePool.add(1000)   # 远超上限
+	ResonancePool.add(1000, ResonancePool.SOURCE_NODE)   # 远超上限
 	assert_int(ResonancePool.current).is_equal(GameConstants.RESONANCE_MAX)  # 100
 
 
 func test_cap_clamps_at_exact_max() -> void:
 	ResonancePool.reset_for_test(0)
-	ResonancePool.add(100)
+	ResonancePool.add(100, ResonancePool.SOURCE_NODE)
 	assert_int(ResonancePool.current).is_equal(100)
-	ResonancePool.add(1)   # 撞顶不再增长
+	ResonancePool.add(1, ResonancePool.SOURCE_HIT)   # 撞顶不再增长
 	assert_int(ResonancePool.current).is_equal(100)
 
 

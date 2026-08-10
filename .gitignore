@@ -18,9 +18,14 @@ saves/
 # 日志
 logs/
 
+# 本地诊断 / 测试产物（运行期生成，不入库）
+*.log
+reports/
+
 # 智能体工作区内部记忆（非项目源码，不入库）
 .workbuddy/
 
 # gdUnit4 测试框架（以 git submodule 形式由用户安装；本机未装，故忽略占位目录）
 # CI 通过 .github/workflows/ci.yml 的 submodules: recursive 拉取真实插件
-game/addons/gdUnit4/
+# 注意：Godot 约定 addon 必须位于工程根 res://addons/（gdUnit4 内部硬编码 res://addons/gdUnit4/）
+addons/gdUnit4/

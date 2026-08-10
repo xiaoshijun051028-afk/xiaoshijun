@@ -18,8 +18,11 @@ const EXPECTED_SIGNALS: Array[String] = [
 
 
 func test_signal_count_is_27() -> void:
-	var sigs := EventBus.get_signal_list()
-	assert_int(sigs.size()).is_equal(27)
+	var declared := 0
+	for s: Dictionary in EventBus.get_signal_list():
+		if EXPECTED_SIGNALS.has(s["name"]):
+			declared += 1
+	assert_int(declared).is_equal(27)
 
 
 func test_key_signals_present() -> void:

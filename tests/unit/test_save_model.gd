@@ -30,10 +30,10 @@ func test_checksum_tamper_rejected() -> void:
 
 
 func test_future_schema_version_rejected() -> void:
-	var s := SaveModel.new_save("0.5.0")
-	s["schema_version"] = SaveModel.SCHEMA_VERSION + 1
-	var text := SaveModel.serialize(s)
-	var result := SaveModel.deserialize(text)
+	var text := SaveModel.serialize(SaveModel.new_save("0.5.0"))
+	# serialize 会强制写回当前 schema_version；直接改文本里的版本号，模拟"来自更新版本的存档"
+	var future := text.replace("\"schema_version\": 1", "\"schema_version\": 2")
+	var result := SaveModel.deserialize(future)
 	assert_bool(result.ok).is_false()
 
 

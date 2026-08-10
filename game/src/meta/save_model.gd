@@ -53,10 +53,36 @@ static func new_save(game_version: String) -> Dictionary:
 	}
 
 
+## 整数值的 float 归一为 int，使序列化端与反序列化端的 JSON 文本一致。
+## Godot 4.7 的 JSON.parse_string 把所有数字都解析成 float（73→73.0、1→1.0），
+## 若 checksum 直接 stringify 真实存档会让写/读两端的 JSON 文本不一致而误判损坏。
+## 仅归一「整数值 float→int」这一情况；真正非整数 float（如 1.5）保持 float，
+## 不影响任何游戏逻辑。
+static func _canonicalize(v: Variant) -> Variant:
+	if typeof(v) == TYPE_FLOAT:
+		if absf(v - roundf(v)) < 0.00001:
+			return int(roundf(v))
+		return v
+	if typeof(v) == TYPE_DICTIONARY:
+		var out: Dictionary = {}
+		for key: Variant in (v as Dictionary).keys():
+			out[_canonicalize(key)] = _canonicalize((v as Dictionary)[key])
+		return out
+	if typeof(v) == TYPE_ARRAY:
+		var out: Array = []
+		for elem: Variant in (v as Array):
+			out.append(_canonicalize(elem))
+		return out
+	return v
+
+
 ## 计算 checksum。覆盖除 checksum 字段本身外的全部内容。
 static func compute_checksum(data: Dictionary) -> String:
 	var copy: Dictionary = data.duplicate(true)
 	copy.erase("checksum")
+	# 整数值 float 归一为 int：消除 Godot 4.7 JSON.parse_string 将数字统一解析成 float
+	# 造成的「写盘按 int 算、读档变 float 再算」的 JSON 文本不一致，保证 checksum 跨读写一致。
+	copy = _canonicalize(copy)
 	# sort_keys = true：保证同内容恒得同 hash，不受 Dictionary 插入顺序影响。
 	var payload: String = JSON.stringify(copy, "", true)
 	var ctx: HashingContext = HashingContext.new()

@@ -33,7 +33,8 @@ func test_gdd_resonance_constants() -> void:
 func test_gdd_slowmo_constants_and_finisher_has_no_slowmo() -> void:
 	# 慢动作仅归属完美格挡（AUD-1 / systems-index §2）。
 	assert_int(GameConstants.PARRY_SLOWMO_FRAMES).is_equal(18)
-	assert_float(GameConstants.PARRY_SLOWMO_SCALE).is_equal_approx(0.3)
+	# 2 参显式写法：Godot 4.7-stable 与 4.7.1 均支持（单参便利写法为 4.7.1-only）。
+	assert_float(GameConstants.PARRY_SLOWMO_SCALE).is_equal_approx(0.3, 0.0001)
 	# 终极度不能引入慢动作：测试断言这两个名字不存在即"设计决策焊死"。
 	# GameConstants 已用 FINISHER_USES_SLOWMO=false 表达该决策。
 	assert_bool(GameConstants.FINISHER_USES_SLOWMO).is_false()

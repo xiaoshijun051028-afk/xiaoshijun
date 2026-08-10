@@ -140,6 +140,13 @@ func _attach_effects() -> void:
 func _ensure_lowpass(idx: int) -> AudioEffectLowPassFilter:
 	if idx < 0:
 		return null
+	# 新建总线的 effects 数组为空，get_bus_effect(idx, 0) 会越界报错。
+	# 先查 count（与 _has_effect_of_type 同风格），无 effect 直接建再挂 idx 0。
+	if AudioServer.get_bus_effect_count(idx) <= 0:
+		var fresh := AudioEffectLowPassFilter.new()
+		fresh.cutoff_hz = LOWPASS_TRANSPARENT_HZ
+		AudioServer.add_bus_effect(idx, fresh, 0)
+		return fresh
 	var existing: AudioEffect = AudioServer.get_bus_effect(idx, 0)
 	if existing is AudioEffectLowPassFilter:
 		var lp0: AudioEffectLowPassFilter = existing as AudioEffectLowPassFilter

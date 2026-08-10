@@ -36,7 +36,7 @@ jobs:
         run: godot --headless --import --quit-after 200
 
       - name: Run gdUnit4 tests
-        run: godot --headless -s game/addons/gdUnit4/bin/GdUnitCmdTool.gd -a tests/ --report-dir logs/
+        run: godot --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd -- --ignoreHeadlessMode -a tests/ --report-dir logs/
 
       - name: Static lint gate (gdlint)
         run: |
