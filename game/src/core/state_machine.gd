@@ -46,10 +46,12 @@ func try_transition(to_name: StringName) -> bool:
 	return true
 
 
-## 进入条件校验。基类拒绝 hitstun 期间的任意转移（Hitstun 自身除外）。
-func can_enter(_target: State) -> bool:
+## 进入条件校验。基类拒绝 hitstun 期间的任意转移，**Hitstun 自身除外**（受击刷新硬直）。
+func can_enter(target: State) -> bool:
 	if _hitstun_frames_left > 0:
-		return false
+		# 硬直期只放行 Hitstun 自身，否则 enter_hitstun() 永远进不去 Hitstun 态
+		# （修复前对「任意」目标返回 false，与注释「Hitstun 自身除外」矛盾）
+		return target != null and StringName(target.name) == &"Hitstun"
 	return true
 
 
