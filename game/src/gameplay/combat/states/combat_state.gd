@@ -36,6 +36,12 @@ func can_enter_state() -> bool:
 	return true
 
 
+## 是否处于无敌帧（ENG-S1-03 / AC-S1-05）。默认 false（可受击）；
+## DashState 覆写为 iframes_left > 0。命中结算统一经此查询，不各自判断状态名。
+func is_invulnerable() -> bool:
+	return false
+
+
 ## 推进一帧；收招已尽则经**同一个** try_transition() 回落中立态——不另开转移入口，
 ## 这样「自然结束」也走得通转移裁决，不会绕过 hitstun 拒绝等规则。
 func physics_tick(delta: float) -> void:

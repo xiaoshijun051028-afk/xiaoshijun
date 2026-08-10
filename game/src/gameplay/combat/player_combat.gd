@@ -25,6 +25,10 @@ const STATE_HITSTUN: StringName = &"Hitstun"
 ## 战斗 FSM。装配完成前为 null。
 var state_machine: CombatStateMachine = null
 
+## 生命值（ENG-S1-03）。伤害结算的唯一权威，命中经 take_damage() 改写。
+var max_hp: int = GameConstants.PLAYER_MAX_HP
+var hp: int = GameConstants.PLAYER_MAX_HP
+
 var _initialized: bool = false
 
 
@@ -101,6 +105,21 @@ func input_resonate() -> bool:
 func take_hit(frames: int) -> void:
 	if state_machine != null:
 		state_machine.enter_hitstun(frames)
+
+
+## 受到 `amount` 点伤害（ENG-S1-03 / AC-S1-05）。
+## 若当前状态无敌（如闪的 iframes），完全免疫、返回 0；否则扣血并广播 player_hp_changed。
+## 返回实际受到的伤害（0 = 被免疫）。hp 不为负。命中来源无关 —— 多敌围攻同样生效。
+func take_damage(amount: int) -> int:
+	if amount <= 0 or state_machine == null:
+		return 0
+	var cs := state_machine.current_state as CombatState
+	if cs != null and cs.is_invulnerable():
+		return 0
+	var old := hp
+	hp = max(0, hp - amount)
+	EventBus.player_hp_changed.emit(hp, old)
+	return old - hp
 
 
 func _add_state(state: CombatState, state_name: StringName) -> void:

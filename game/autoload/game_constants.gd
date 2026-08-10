@@ -34,6 +34,8 @@ const PARRY_WINDOW: int = 6
 
 ## 闪的无敌帧，10 帧 ≈167ms。
 const DASH_IFRAMES: int = 10
+## 玩家最大生命（ENG-S1-03 / AC-S1-05）。v1 占位，后续随平衡调参。
+const PLAYER_MAX_HP: int = 100
 
 ## S8 技能树可把 CANCEL_WINDOW 最多减到 5 帧（architecture.md §4.2）。
 ## 注意方向：技能树是**减**窗口（更难但更快），不是放宽。
