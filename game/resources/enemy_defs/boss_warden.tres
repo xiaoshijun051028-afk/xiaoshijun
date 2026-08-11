@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/src/ai/enemy_definition.gd" id="1_ed"]
+
+[resource]
+script = ExtResource("1_ed")
+enemy_id = &"boss_warden"
+max_hp = 1000
+telegraph_frames = 40
+attack_damage = 25
+move_speed = 2.0
+weakpoint_multiplier = 1.0
