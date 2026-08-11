@@ -70,12 +70,16 @@ func current_state_name() -> StringName:
 
 
 ## 受击扣血（ENG-S4-01 骨架）。hp 不为负；归零转 Dead 并发 enemy_died。
-## 弱点倍率 / 击杀 +15 属 ENG-S4-03 / 击杀结算。
-func take_damage(amount: int) -> int:
+## hit_weakpoint=true 时按定义弱点倍率放大（ENG-S4-03）；倍率来自 EnemyDefinition.weakpoint_multiplier，非字面量。
+## 击杀 +15（adr-002）属后续击杀结算，不在本函数。
+func take_damage(amount: int, hit_weakpoint: bool = false) -> int:
 	if amount <= 0 or hp <= 0:
 		return 0
+	var dealt := amount
+	if hit_weakpoint and definition != null and definition.weakpoint_multiplier > 0.0:
+		dealt = int(roundf(dealt * definition.weakpoint_multiplier))
 	var old := hp
-	hp = max(0, hp - amount)
+	hp = max(0, hp - dealt)
 	if hp <= 0:
 		state_machine.try_transition(STATE_DEAD)
 		EventBus.enemy_died.emit(self)
