@@ -9,10 +9,9 @@ config_version=5
 
 config/name="Aetherfall"
 config/description="星陨之境 — P4 共鸣统一垂直切片（Sprint 1）"
-; ⚠ run/main_scene 暂未设置：Boot.tscn 属 ENG-S0-06 场景工作，当前仅落地纯逻辑
-;   （state.gd / state_machine.gd）。场景补齐并校验后，在此指向
-;   res://game/scenes/boot/Boot.tscn（S0 出口要求 Boot 为 main）。
-; run/main_scene="res://game/scenes/boot/Boot.tscn"
+; 开头流（design/gdd/ux/opening-ui.md）：标题屏 → 主菜单 → 竞技场。
+; Boot.tscn（ENG-S0-06）为后续正式启动序列的落点，届时改指向 Boot 并由其转标题屏。
+run/main_scene="res://game/scenes/title_screen.tscn"
 
 [autoload]
 

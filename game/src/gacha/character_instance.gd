@@ -45,3 +45,20 @@ static func from_dict(d: Dictionary) -> CharacterInstance:
 	inst.roll_aff_milli = int(d.get("roll_aff_milli", 1000))
 	inst.is_duplicate = bool(d.get("is_duplicate", false))
 	return inst
+
+
+## 用静态定义补齐派生字段（存档只存 id + 锁定的 roll，**不存**派生的 final_*，
+## 因为 final_* 是「常量 × roll」的函数——入档会变成第二个真相源，改一次基线全档漂移）。
+## 因此读档后必须 rehydrate，否则 final_hp 停在默认 0 → 出战即 0 血暴毙。
+## 幂等：同一 def 重复调用结果一致（roll 已锁定，compute_stat 为纯函数）。
+func rehydrate(def: CharacterDefinition) -> void:
+	if def == null or def.character_id != character_id:
+		return
+	display_name = def.display_name
+	archetype = def.archetype
+	rarity = def.rarity
+	final_hp = GachaEngine.compute_stat(def.base_hp, &"hp", rarity, 1000)
+	final_attack = GachaEngine.compute_stat(def.base_attack, &"attack", rarity, roll_atk_milli)
+	final_defense = GachaEngine.compute_stat(def.base_defense, &"defense", rarity, roll_def_milli)
+	final_move_speed = GachaEngine.compute_stat(def.base_move_speed, &"move_speed", rarity, 1000)
+	final_affinity = GachaEngine.compute_stat(def.base_affinity, &"resonance_affinity", rarity, roll_aff_milli)
