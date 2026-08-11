@@ -36,6 +36,14 @@ func _ready() -> void:
 	initialize()
 	# tick 由宿主驱动，本节点不自转（同 StateMachine._ready 的约定）。
 	set_physics_process(false)
+	# S4-04：完美格破防联动。S1 的 _perform_perfect_parry 广播 enemy_staggered，
+	# 本处订阅后让对应敌人经其唯一转移入口进入 Stagger（与 S1 共用逻辑，不复制状态机）。
+	EventBus.enemy_staggered.connect(_on_enemy_staggered)
+
+
+func _exit_tree() -> void:
+	if EventBus.enemy_staggered.is_connected(_on_enemy_staggered):
+		EventBus.enemy_staggered.disconnect(_on_enemy_staggered)
 
 
 ## 装配状态树并进入 Idle。幂等 —— 测试可脱离场景树直接调用，
@@ -198,3 +206,11 @@ func _request(state_name: StringName) -> bool:
 	if state_machine == null:
 		return false
 	return state_machine.try_transition(state_name)
+
+
+## S4-04：敌人被完美格破防时，经其唯一转移入口进入 Stagger 硬直。
+## enemy 可能为任意 Node3D；仅当它是 EnemyCombat 时才联动（其他实体忽略）。
+func _on_enemy_staggered(enemy: Node3D, frames: int) -> void:
+	var ec := enemy as EnemyCombat
+	if ec != null:
+		ec.apply_stagger(frames)

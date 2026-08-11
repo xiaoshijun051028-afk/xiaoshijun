@@ -91,3 +91,22 @@ func test_perfect_parry_requires_parry_state() -> void:
 	var ok := pc.parry_incoming(null)
 	assert_bool(ok).is_false()
 	assert_int(ResonancePool.current).is_equal(before)
+
+
+## ENG-S4-04：完美格破防联动 —— 真实敌人经唯一转移入口进入 Stagger 硬直。
+## PlayerCombat 订阅 enemy_staggered 后对自身调用 apply_stagger（S4-04 联动点）。
+func test_perfect_parry_staggers_actual_enemy() -> void:
+	var pc := _make()
+	var ec := EnemyCombat.new()
+	ec.initialize()
+	add_child(ec)
+	pc.input_parry()
+	assert_bool(pc.current_state_name() == &"Parry").is_true()
+	var ok := pc.parry_incoming(ec)   # attacker = 真实敌人实体
+	assert_bool(ok).is_true()
+	# 敌人经唯一入口进入 Stagger（>=1.2s 硬直由 ENEMY_STAGGER_FRAMES 决定，S4 基础）
+	assert_str(String(ec.current_state_name())).is_equal("Stagger")
+	pc.end_time_dilation()
+	# 显式断开本例 PlayerCombat 的联动连接，避免泄漏到其他用例
+	if EventBus.enemy_staggered.is_connected(Callable(pc, "_on_enemy_staggered")):
+		EventBus.enemy_staggered.disconnect(Callable(pc, "_on_enemy_staggered"))
