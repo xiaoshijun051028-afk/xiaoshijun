@@ -103,6 +103,11 @@ func _collect_snapshot(shrine_id: StringName) -> void:
 		narrative["echoes_collected"] = echo.call("capture_save_state")
 		_state["narrative"] = narrative
 
+	# ★ 花名册（S9 抽卡）：经 get_node_or_null 取 RosterAutoload，避免 autoload 初始化顺序依赖。
+	var roster_node: Node = get_node_or_null(^"/root/RosterAutoload")
+	if roster_node != null:
+		_state["roster"] = roster_node.call("to_dict")
+
 
 func _apply_snapshot() -> void:
 	ResonancePool.apply_save_state(_state.get("resonance", {}) as Dictionary)
@@ -110,6 +115,11 @@ func _apply_snapshot() -> void:
 	if echo != null:
 		var narrative: Dictionary = _state.get("narrative", {}) as Dictionary
 		echo.call("apply_save_state", narrative.get("echoes_collected", []) as Array)
+
+	# 花名册（S9）：恢复拥有角色 / 出战选择 / 保底计数。
+	var roster_node: Node = get_node_or_null(^"/root/RosterAutoload")
+	if roster_node != null:
+		roster_node.call("from_dict", _state.get("roster", {}) as Dictionary)
 
 
 func _read_and_parse(path: String) -> SaveModel.ParseResult:

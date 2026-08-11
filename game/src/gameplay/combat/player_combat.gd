@@ -29,6 +29,14 @@ var state_machine: CombatStateMachine = null
 var max_hp: int = GameConstants.PLAYER_MAX_HP
 var hp: int = GameConstants.PLAYER_MAX_HP
 
+## 出战角色数值（S9 抽卡注入；未注入时取默认基准，向后兼容 S1 手感）。
+## attack_power 供战斗命中结算（后续专项接入）；defense 已接入 take_damage 减伤；
+## move_speed / resonance_affinity 持有，供移动与共鸣结算消费。
+var attack_power: int = 100
+var defense: int = 100
+var move_speed: float = 100.0
+var resonance_affinity: int = 100
+
 var _initialized: bool = false
 
 
@@ -129,8 +137,9 @@ func take_damage(amount: int) -> int:
 	var cs := state_machine.current_state as CombatState
 	if cs != null and cs.is_invulnerable():
 		return 0
+	var dealt := maxi(1, amount * 100 / maxi(1, defense))
 	var old := hp
-	hp = max(0, hp - amount)
+	hp = max(0, hp - dealt)
 	EventBus.player_hp_changed.emit(hp, old)
 	return old - hp
 
@@ -214,3 +223,16 @@ func _on_enemy_staggered(enemy: Node3D, frames: int) -> void:
 	var ec := enemy as EnemyCombat
 	if ec != null:
 		ec.apply_stagger(frames)
+
+
+## S9：应用出战角色的最终数值（抽卡 roll 锁定后的值）。
+## max_hp 直接生效并满血；其余维度持有，供战斗 / 移动 / 共鸣结算消费。
+func apply_character_stats(inst: CharacterInstance) -> void:
+	if inst == null:
+		return
+	max_hp = inst.final_hp
+	hp = max_hp
+	attack_power = inst.final_attack
+	defense = inst.final_defense
+	move_speed = float(inst.final_move_speed)
+	resonance_affinity = inst.final_affinity

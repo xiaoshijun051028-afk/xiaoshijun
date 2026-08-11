@@ -50,6 +50,8 @@ static func new_save(game_version: String) -> Dictionary:
 		"narrative": {"echoes_collected": []},
 		"meta": {"skill_points": 0, "skills_unlocked": [], "milestones": []},
 		"stats": {"playtime_sec": 0, "deaths": 0},
+		# 花名册（S9 抽卡）：opaque dict，由 RosterAutoload 贡献/还原；不含任何规则常量。
+		"roster": {},
 	}
 
 

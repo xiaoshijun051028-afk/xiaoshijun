@@ -24,6 +24,7 @@ InputManager="*res://game/autoload/input_manager.gd"
 AudioDirector="*res://game/autoload/audio_director.gd"
 EchoDirector="*res://game/autoload/echo_director.gd"
 DebugOverlay="*res://game/autoload/debug_overlay.gd"
+RosterAutoload="*res://game/src/gacha/roster_autoload.gd"
 
 [physics]
 
