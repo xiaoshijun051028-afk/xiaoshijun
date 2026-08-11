@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://btestmechaplaceholder"]
+
+[ext_resource type="Script" path="res://test_mecha_placeholder.gd" id="1_testmecha"]
+
+[node name="TestMecha" type="Node"]
+script = ExtResource("1_testmecha")

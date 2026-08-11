@@ -4,7 +4,12 @@
 > **视觉权威**：林绘澄（美术圣经作者）；本文件为所有语义色 hex 的最终真理源
 > **对齐**：美术圣经 §2（视觉真理源）、概念 §7 色彩纪律、systems-index §2（待文策渊同步为本文件值）
 > **约束**：`THREAT=#A62C6B` 不可变；提供 Godot 4 可用 hex
-> **版本**：v1.1（别名补录：`FRIENDLY_AMBER`。**hex 集合与 v1.0 完全一致，无一处取值变更**；引用「v1.0」的下游文档无需更新）
+> **版本**：v1.2（机甲灰阶补登。**既有 hex 一处未变，`THREAT` 保持锁定**；引用「v1.0 / v1.1」的下游文档无需更新）
+
+**变更记录**
+- **v1.2**：补登机甲灰阶 MECH_BASE/INACTIVE_GRAY 及圣经引用色。（关闭 `mecha-art-bible.md §8` 开放项 **O1**；三个新增全部为**结构色 / 状态色**，**非信号色**，不触碰 `THREAT` 语义、不改变「敌方预警锁 THREAT」约定。）
+- **v1.1**：别名补录 `FRIENDLY_AMBER`（hex 集合与 v1.0 完全一致，无一处取值变更）。
+- **v1.0**：CONCERN-A 跨文档语义色冲突收口定稿（见 §4）。
 
 ---
 
@@ -33,6 +38,9 @@
 | `INTERACT` | 可交互/线索 | `= FRIENDLY_GOLD #F2C15E` | 同暖金 | 拾取/机关/路标（复用暖金）| 美术圣经 §2 可交互 |
 | `FRIENDLY_AMBER` | 友方支撑·暖金（代码字段名）| `= FRIENDLY_GOLD #F2C15E` | 同暖金 | 同 `FRIENDLY_GOLD`（可交互/线索、希望点缀、暖光）| architecture L720 `@export var`、systems-index §2、ux-spec §98、accessibility-tier §0 |
 | `UI_BASE` | UI 底（深空，代码字段名）| `= UI_BG #1A2233` | 同 `UI_BG` | 同 `UI_BG`（面板/遮罩底色、文本托底）| architecture L793 `@export var` |
+| `MECH_BASE` | 机甲 chassis 基色（深岩灰）| `#2A3140` | `(0.165, 0.192, 0.251)` | 玩家/友方机甲 chassis 主 albedo、MechBase 材底 | 美术圣经 §5.1 hero 底；机甲圣经 §1.1/§2.1/§2.3；**与敌枪铁灰区分见下** |
+| `INACTIVE` | 未就绪 / 不可用态（灰）| `#5A6072` | `(0.353, 0.376, 0.447)` | 共鸣池不足等「未就绪」态底色、N 稀有度未就绪灰、禁用控件 | gacha §2.1、ux-spec §105、systems-index §2；**本名 `INACTIVE`，别名 `INACTIVE_GRAY`** |
+| `ENEMY_CHASSIS_GRAY` | 敌方 chassis 基色（枪铁灰）| `#3A3F4B` | `(0.227, 0.247, 0.294)` | 敌方混沌造物 chassis 主 albedo（材质结构色，非信号）| 美术圣经 §5.3；机甲圣经 §1.1/§2.3（刻意区别于 `MECH_BASE`）|
 
 ### 1.1 别名区（Aliases）
 
@@ -43,6 +51,7 @@
 | `INTERACT` | 语义别名 | `FRIENDLY_GOLD` `#F2C15E` | 美术圣经 §2、audio-direction §321 |
 | `FRIENDLY_AMBER` | **代码侧别名** | `FRIENDLY_GOLD` `#F2C15E` | architecture L720、systems-index §2、ux-spec、accessibility-tier §0 |
 | `UI_BASE` | **代码侧别名** | `UI_BG` `#1A2233` | architecture L793 `@export var` |
+| `INACTIVE_GRAY` | **文档侧别名** | `INACTIVE` `#5A6072` | 机甲圣经 §2.3（原「提案·待登记」名）；解析到 `INACTIVE`，不另立 hex |
 
 > `INTERACT` 为 `FRIENDLY_GOLD` 的语义别名，不另立 hex，避免调色板膨胀。
 > `FRIENDLY_AMBER` 为 `FRIENDLY_GOLD` 的代码侧别名，不另立 hex，避免调色板膨胀。
@@ -70,6 +79,9 @@
 | 治疗绿 | `#7BD16A` | `#3E8FD0`（CVD 安全蓝，与玩家青以明度/色相区分）| ✚ 图标 | 绿→蓝避开红绿混淆；蓝与玩家青不同明度 |
 | `UI_BG` | `#1A2233` | 保持 | — | 中性 |
 | `UI_BASE` | `#1A2233` | 保持 | — | 同 `UI_BG`（代码侧别名）|
+| `MECH_BASE` | `#2A3140` | 保持 | — | 中性 chassis，非信号色（F1 形状编码承载阵营读）|
+| `INACTIVE` | `#5A6072` | 保持 | 禁用样式 + 文字提示 | 状态灰；仅表「未就绪/禁用」，不承载信息文本（2.54:1 低于 3:1）|
+| `ENEMY_CHASSIS_GRAY` | `#3A3F4B` | 保持 | — | 中性 chassis，非信号色（敌预警仍锁 `THREAT`）|
 | `INTERACT` | `#F2C15E` | 保持 | ↗ 图标 | 同暖金（别名）|
 | `FRIENDLY_AMBER` | `#F2C15E` | 保持 | ↗ 图标 | 同暖金（代码侧别名）|
 
@@ -93,6 +105,9 @@
 | 友方青 | `#2BB6A8` | 星辉青 `#5FD2C8` | `#5FD2C8` | 退役 `#2BB6A8`，统一星辉青 |
 | 暖金 | `#F4B740` | 暖金 `#F2C15E` | `#F2C15E` | 退役 `#F4B740`，统一暖金 |
 | （补充）珊瑚 | `#FF8A65` | 未列 | `#FF8A65`（canon）| 采纳概念 §7，正式入册 |
+| `MECH_BASE` | — | 未列 | `#2A3140` | 机甲圣经补登（O1）；友方 chassis 结构色 |
+| `INACTIVE` / `INACTIVE_GRAY` | — | 未列 | `#5A6072` | 机甲圣经补登（O1）；「未就绪/禁用」态，本名 `INACTIVE` |
+| `ENEMY_CHASSIS_GRAY` | — | 美术圣经 §5.3 `#3A3F4B` | `#3A3F4B` | 敌 chassis 结构色；**非信号**，**不**取代 `THREAT` 预警语义 |
 | `THREAT` | `#A62C6B` | `#A62C6B` | `#A62C6B` | **不变（mandated）** |
 
 > ⚠ **别名 ≠ 退役名**：本表「退役」列针对的是**旧 hex 字面量**（`#2BB6A8`、`#F4B740`），它们进 lint 拒绝名单。
@@ -101,6 +116,8 @@
 
 **为何共振辉光保留 `#9FF7E8`**：美术圣经 §2 只定义了"星辉青 `#5FD2C8`"这一青色真理；systems-index 的 `#9FF7E8` 实为同一青色家族的**自发光/泛光态**（emissive bloom 需更亮的青白才读作"光"而非"色块"）。故本文件将二者拆分为基色（`PLAYER_ALLY_MAIN`）与发光态（`RESONANCE_GLOW`），既守美术圣经真理，又给技术上正确的辉光表现——冲突源于旧文档同名不同义，现已厘清。
 
+> **v1.2 灰阶补登记·铁律重申**：`MECH_BASE #2A3140`、`INACTIVE #5A6072`、`ENEMY_CHASSIS_GRAY #3A3F4B` 三者均为**结构/状态色（材质 albedo / 控件态）**，**绝不**承担语义信号。阵营「友/敌」可读性与威胁提示，仍**唯一**由 `PLAYER_ALLY_MAIN`（青白共鸣回路）、`THREAT`（品红 telegraph + 菱形脉冲）承载（见 §0、§2）。新增 `ENEMY_CHASSIS_GRAY` **不构成第二种敌人警告色**——敌预告/危险标记只有 `THREAT` 一个信号源，枪铁灰与深岩灰互为对照仅是「机体材质」，对比度仅 ~1.24:1（见 §2 说明），本就**不能**用于阵营辨识。
+
 ---
 
 ## 5. 下一步 / 交接
@@ -108,3 +125,5 @@
 - **美术圣经**：可在 §2 末新增 §2.6「权威 hex 见 `design/color-tokens.md`」交叉引用（可选，不阻塞）。
 - **程基岩（架构）**：设置系统/可读性据本 Token 实现色盲切换与主题参数化（按 Handoff 不直连，由主理人调度）。
 - 本收口为 Phase 3 跨文档不一致收尾，**不阻塞 Phase 4 开工**。
+- **（v1.2 已闭）机甲灰阶 O1**：`MECH_BASE` / `INACTIVE`(`INACTIVE_GRAY`) / `ENEMY_CHASSIS_GRAY` 已入册（§1、§1.1、§2、§4）。**建议（非阻塞）**：机甲圣经 §2.3 表头「MECH_BASE（提案）/ INACTIVE_GRAY（提案·待登记）/ 无 hex 待补登」等措辞与其 §8 O1「未入 color-tokens」应改为「已补登」；该圣经的清理由美术总监/主理人下一轮处理，本文件不擅改其它文档。
+- **（v1.2 待拍板）`ENEMY_CHASSIS_GRAY`**：为「补登圣经引用色、避免散落 hex 被 lint 拦截」而新增（美术圣经 §5.3 已 canon）。其定位为**纯结构色**，不引入第二种敌人信号。若主理人判定敌方 chassis 永不进代码（仅作美术参考），可退回、仅保留 `MECH_BASE`/`INACTIVE`，由工程在美术侧引用；此决策需主理人确认。
