@@ -1,0 +1,5 @@
+# Godot editor configs must stay LF — the ConfigFile parser breaks on CRLF
+# (symptom: "section preset.0 not found" / "Expected '['" on export)
+export_presets.cfg text eol=lf
+project.godot text eol=lf
+*.cfg text eol=lf
