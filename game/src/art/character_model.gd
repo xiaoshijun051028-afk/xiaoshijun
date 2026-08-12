@@ -26,6 +26,7 @@ const BOB_SPEED: float = 1.6
 # 待补登为 ColorTokens const 后，此处应改为直接引用（消除散落 hex，满足 lint）。
 const MECH_BASE: Color = Color(0.165, 0.192, 0.251)          # 深岩灰 #2A3140 机甲 chassis 基色（友方）
 
+var _id: StringName = &""
 var _base_y: float = 0.0
 var _spin: bool = false
 var _t: float = 0.0
@@ -48,16 +49,81 @@ func _ready() -> void:
 
 
 ## 按 character_id 构建样本模型；未知 id → 默认玩家剪影。
+## 优先加载真机甲 GLB(game/assets/mecha/mecha_<id>.glb)；缺失则回退到程序化占位。
 func build(id: StringName) -> void:
 	_clear()
+	_id = id
 	var spec: Dictionary = _spec_for(id)
 	_spin = spec.get("spin", false)
 	var s: float = spec.get("scale", 1.0)
-	_make_materials(spec.get("accent", ColorTokens.RESONANCE_GLOW))
+	var accent: Color = spec.get("accent", ColorTokens.RESONANCE_GLOW)
+	if _try_load_glb(id, accent):
+		scale = Vector3(s, s, s)
+		_base_y = position.y
+		return
+	_make_materials(accent)
 	var builder: Callable = spec.get("builder", _build_blade)
-	builder.call(spec.get("accent", ColorTokens.RESONANCE_GLOW))
+	builder.call(accent)
 	scale = Vector3(s, s, s)
 	_base_y = position.y
+
+
+func _try_load_glb(id: StringName, accent: Color) -> bool:
+	var path := "res://game/assets/mecha/mecha_%s.glb" % id
+	if not FileAccess.file_exists(path):
+		return false
+	var scene: PackedScene = load(path)
+	if scene == null:
+		push_error("CharacterModel: failed to load GLB %s" % path)
+		return false
+	var inst := scene.instantiate() as Node3D
+	add_child(inst)
+	_normalize_glb(inst)
+	_apply_accent(inst, accent)
+	return true
+
+
+func _normalize_glb(root: Node3D) -> void:
+	var aabb := AABB()
+	var first := true
+	for c in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := c as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var local_aabb := mi.get_aabb()
+		var transformed := local_aabb * mi.transform
+		if first:
+			aabb = transformed
+			first = false
+		else:
+			aabb = aabb.merge(transformed)
+	if first:
+		return
+	var center := aabb.get_center()
+	var size := aabb.size
+	var max_size := maxf(size.x, maxf(size.y, size.z))
+	if max_size <= 0.001:
+		return
+	var target_height: float = 2.0
+	var s := target_height / max_size
+	root.position = -center * s
+	root.scale = Vector3(s, s, s)
+
+
+func _apply_accent(root: Node3D, accent: Color) -> void:
+	for c in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := c as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var surf_count: int = mi.mesh.get_surface_count()
+		for i in range(surf_count):
+			var mat := mi.get_active_material(i)
+			if mat is StandardMaterial3D:
+				var dup := (mat as StandardMaterial3D).duplicate()
+				dup.emission_enabled = true
+				dup.emission = accent
+				dup.emission_energy_multiplier = 1.4
+				mi.set_surface_override_material(i, dup)
 
 
 ## 八台各路由到专属 builder（不再退化成四档通用剪影）。
