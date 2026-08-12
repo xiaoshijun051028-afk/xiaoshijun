@@ -41,6 +41,32 @@ gdlint game/src game/autoload
 godot --headless -s game/tools/lint/lint_hex_literals.gd
 ```
 
+## 发布（Release）— 一键独立 exe
+
+仓库自带 `release.ps1`：把当前代码导出为**单文件自包含**的 Windows 独立 exe（Embed Pck，无需附带 `.pck`）并部署到桌面，可选提交 + 推送。
+
+**前置**：Godot 4.7-stable 二进制。脚本按以下顺序查找：环境变量 `GODOT` → `tools/godot/Godot_v4.7-stable_win64.exe` → `../tools/godot/...`。
+
+```powershell
+# 仅出包 + 放桌面（不提交）
+powershell -ExecutionPolicy Bypass -File release.ps1
+
+# 出包 + 提交 + 推送（显式 -Push 才推送，防误发）
+powershell -ExecutionPolicy Bypass -File release.ps1 -Push
+powershell -ExecutionPolicy Bypass -File release.ps1 -Push -Message "feat: ..."
+```
+
+**流水线（任一冒烟测试失败立即中止，绝不发布坏包）：**
+1. 冒烟测试质量门：须 `test_mecha_placeholder.tscn` 与 `test_arena_wave_smoke.tscn` 均输出 `TEST_FINISHED_OK`
+2. 重导独立 exe：`--export-release "Windows Desktop" build/Aetherfall.exe`
+3. 自包含校验：把 exe 单独放进无 `.pck` 的临时目录 headless 启动，须 `EXIT=0`
+4. 部署：`build/Aetherfall.exe` → `~/Desktop/Aetherfall.exe`
+5. （`-Push`）`git add -A` + commit + `git push origin master`
+
+产物：`build/Aetherfall.exe`（单文件，约 111MB）；桌面副本 `Desktop/Aetherfall.exe` 即玩家双击入口。
+
+> 注：本环境 PowerShell 工具直接 `& release.ps1` 偶发不执行主体，可改在 Bash 内用 godot 二进制 + git 逐步跑等效步骤（逻辑与脚本一致）。
+
 ## ⚠ 执行缺口（Sprint 1 已知，待补）
 
 本仓库源码与测试**可审阅但本地未实跑**，原因：
