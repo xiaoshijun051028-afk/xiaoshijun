@@ -145,6 +145,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key != null and key.pressed and not key.echo and key.physical_keycode == KEY_R:
 		if _skills.activate():
 			_toast("技能发动 · " + _skill_name())
+			if _vfx != null:
+				_vfx.skill_cast(_rig.global_position + Vector3(0.0, 1.0, 0.0))
 		else:
 			_toast("技能冷却中")
 
@@ -239,11 +241,23 @@ func _on_skill_dash(impulse: Vector3) -> void:
 	_begin_dash(world)
 
 
+## 玩家正前方的挥砍特效锚点（贴地、约腰高），让斩击弧光始终出现在「面前」。
+func _slash_fx_pos() -> Vector3:
+	var fwd := -_rig.global_transform.basis.z
+	fwd.y = 0.0
+	if fwd.length() < 0.01:
+		fwd = Vector3(0.0, 0.0, -1.0)
+	return _rig.global_position + fwd * 1.2 + Vector3(0.0, 1.0, 0.0)
+
+
 # ─────────────────────────────────────────────────────────────
 # 命中结算（arena 层；S1 战斗 FSM 与 PlayerCombat 未改一行）
 # ─────────────────────────────────────────────────────────────
 
 func _resolve_slash() -> void:
+	# 挥砍弧光：无论命中与否都展示，给玩家明确的「我挥了」反馈（解决「没有普攻特效」）。
+	if _vfx != null:
+		_vfx.slash(_slash_fx_pos())
 	var target := _pick_target(ATTACK_RANGE)
 	if target == null:
 		return
@@ -257,12 +271,17 @@ func _resolve_slash() -> void:
 	var dealt: int = target.take_damage(_skills.compute_damage(SLASH_BASE_DAMAGE), back_hit)
 	ResonancePool.add(GameConstants.GAIN_HIT, ResonancePool.SOURCE_HIT)
 	ResonancePool.notify_combat_contact()
+	if dealt > 0:
+		var model: Node = target.get_node_or_null("Model")
+		if model != null and model.has_method("flash_hit"):
+			model.flash_hit()
+		if _vfx != null:
+			_vfx.hit_impact(target.global_position + Vector3(0.0, 1.0, 0.0), ColorTokens.RESONANCE_GLOW)
+			_vfx.damage_popup(target.global_position + Vector3(0.0, 1.7, 0.0), dealt, ColorTokens.RESONANCE_GLOW)
 	if back_hit:
 		_toast("弱点命中 ×%.1f  -%d" % [target.definition.weakpoint_multiplier, dealt])
 	else:
 		_toast("命中 -%d" % dealt)
-	if _vfx != null:
-		_vfx.hit_impact(target.global_position + Vector3(0.0, 1.0, 0.0), ColorTokens.RESONANCE_GLOW)
 
 
 func _resolve_finisher() -> void:
@@ -279,6 +298,10 @@ func _resolve_finisher() -> void:
 	_toast("共鸣终结技！-%d" % dealt)
 	if _vfx != null:
 		_vfx.finisher(target.global_position + Vector3(0.0, 1.0, 0.0))
+		var model: Node = target.get_node_or_null("Model")
+		if model != null and model.has_method("flash_hit"):
+			model.flash_hit()
+		_vfx.damage_popup(target.global_position + Vector3(0.0, 1.9, 0.0), dealt, ColorTokens.RESONANCE_GLOW)
 
 
 ## 敌人挥出攻击的那一帧。先问完美格（PARRY_WINDOW 内且 armed 才算），
@@ -520,9 +543,8 @@ func _build_world() -> void:
 	env_res.background_mode = Environment.BG_COLOR
 	env_res.background_color = ColorTokens.SKY_AZURE
 	env_res.fog_enabled = true
-	env_res.fog_color = ColorTokens.SKY_AZURE.lightened(0.12)
-	env_res.fog_begin = 16.0
-	env_res.fog_end = 38.0
+	env_res.fog_light_color = ColorTokens.SKY_AZURE.lightened(0.12)
+	env_res.fog_density = 0.014
 	var world_env := WorldEnvironment.new()
 	world_env.name = "WorldEnv"
 	world_env.environment = env_res

@@ -96,6 +96,29 @@ func _clear() -> void:
 		remove_child(c)
 
 
+## 受击反馈：所有部件瞬时闪白（提亮 emissive）再还原——明确的「被打到」视觉确认。
+## 不动骨架/颜色语义，仅短暂脉冲各部件自有的 material_override（每部件独立材质，安全）。
+func flash_hit() -> void:
+	for c in get_children():
+		if not (c is MeshInstance3D):
+			continue
+		var mi := c as MeshInstance3D
+		var m := mi.material_override as StandardMaterial3D
+		if m == null:
+			continue
+		var orig_emissive: Color = m.emissive
+		var orig_enabled: bool = m.emissive_enabled
+		m.emissive_enabled = true
+		m.emissive = Color(1.0, 1.0, 1.0)
+		# 0.12s 后还原（用 Timer 而非对 emissive 做 Tween，规避属性访问告警；并保护 instance 有效性）。
+		var t := get_tree().create_timer(0.12)
+		t.timeout.connect(func():
+			if is_instance_valid(m):
+				m.emissive = orig_emissive
+				m.emissive_enabled = orig_enabled
+		)
+
+
 func _process(delta: float) -> void:
 	_t += delta
 	position.y = _base_y + sin(_t * BOB_SPEED) * BOB_HEIGHT
