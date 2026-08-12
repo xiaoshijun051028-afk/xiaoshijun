@@ -27,6 +27,15 @@ var _preview_pivot: Node3D = null           # 旋转轴：承载机甲模型，_
 var _sel_style: StyleBoxFlat = null
 var _norm_style: StyleBoxFlat = null
 
+# 预览旋转（鼠标拖拽自由转；未拖拽时缓慢自转）。
+var _preview_dragging: bool = false
+var _preview_yaw: float = 0.0
+var _preview_pitch: float = 0.0
+# 星轨召唤面板引用（关闭时置 null）。
+var _summon_panel: Control = null
+var _summon_currency: Label = null
+var _summon_results: VBoxContainer = null
+
 
 func _ready() -> void:
 	_build_styles()
@@ -130,7 +139,7 @@ func _build_ui() -> void:
 	# 右栏顶部：实时 3D 机甲预览（自动旋转），下方为文字详情。
 	_build_preview()
 	var cap := Label.new()
-	cap.text = "实时预览 · 自动旋转"
+	cap.text = "实时预览 · 拖拽旋转，松手自动转"
 	cap.add_theme_font_size_override("font_size", 15)
 	cap.add_theme_color_override("font_color", ColorTokens.INACTIVE)
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -145,6 +154,7 @@ func _build_ui() -> void:
 	bar.add_theme_constant_override("separation", 20)
 	inner.add_child(bar)
 
+	_add_button(bar, "星轨召唤", _on_summon, ColorTokens.FRIENDLY_GOLD)
 	_add_button(bar, "确认出战", _on_confirm, ColorTokens.RESONANCE_GLOW)
 	_add_button(bar, "返回菜单", _on_back, ColorTokens.INACTIVE)
 
@@ -293,6 +303,7 @@ func _build_preview() -> void:
 	_preview_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_preview_container.custom_minimum_size = Vector2(340, 300)
 	_preview_container.stretch = true
+	_preview_container.mouse_filter = Control.MOUSE_FILTER_PASS   # 让预览区点击穿透到 _unhandled_input 做拖拽
 	_detail.add_child(_preview_container)
 
 	var vp := SubViewport.new()
@@ -346,8 +357,12 @@ func _set_preview_model(id: StringName) -> void:
 
 
 func _process(delta: float) -> void:
-	if _preview_pivot != null:
-		_preview_pivot.rotation.y += delta * 0.6
+	if _preview_pivot == null:
+		return
+	if not _preview_dragging:
+		_preview_yaw += delta * 0.6
+	_preview_pivot.rotation.y = _preview_yaw
+	_preview_pivot.rotation.x = _preview_pitch
 
 
 # --- 操作 ----------------------------------------------------------------------
@@ -355,14 +370,150 @@ func _process(delta: float) -> void:
 func _on_confirm() -> void:
 	if _selected == null:
 		return
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	RosterAutoload.set_active(_selected.character_id)
 	get_tree().change_scene_to_file("res://game/scenes/arena_min.tscn")
 
 
 func _on_back() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_tree().change_scene_to_file("res://game/scenes/main_menu.tscn")
 
 
+# --- 星轨召唤（抽卡入口）-------------------------------------------------------
+
+func _on_summon() -> void:
+	_open_summon()
+
+
+func _open_summon() -> void:
+	if _summon_panel != null:
+		_summon_panel.queue_free()
+		_summon_panel = null
+	var dim := Control.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(dim)
+	_summon_panel = dim
+
+	var bg := ColorRect.new()
+	bg.color = Color(0.0, 0.0, 0.0, 0.55)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dim.add_child(bg)
+
+	var panel := Panel.new()
+	panel.custom_minimum_size = Vector2(580, 540)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	dim.add_child(panel)
+
+	var m := MarginContainer.new()
+	m.add_theme_constant_override("margin_left", 26)
+	m.add_theme_constant_override("margin_right", 26)
+	m.add_theme_constant_override("margin_top", 22)
+	m.add_theme_constant_override("margin_bottom", 22)
+	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.add_child(m)
+
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	m.add_child(v)
+
+	var title := Label.new()
+	title.text = "星轨召唤"
+	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_color_override("font_color", ColorTokens.FRIENDLY_GOLD)
+	v.add_child(title)
+
+	_summon_currency = Label.new()
+	_update_summon_currency()
+	v.add_child(_summon_currency)
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	v.add_child(row)
+	_add_button(row, "单抽", _do_summon.bind(1), ColorTokens.RESONANCE_GLOW)
+	_add_button(row, "十连", _do_summon.bind(10), ColorTokens.FRIENDLY_GOLD)
+	_add_button(row, "关闭", _close_summon, ColorTokens.INACTIVE)
+
+	var cap := Label.new()
+	cap.text = "召唤结果"
+	cap.add_theme_font_size_override("font_size", 18)
+	cap.add_theme_color_override("font_color", ColorTokens.INACTIVE)
+	v.add_child(cap)
+
+	_summon_results = VBoxContainer.new()
+	_summon_results.add_theme_constant_override("separation", 4)
+	v.add_child(_summon_results)
+
+
+func _close_summon() -> void:
+	if _summon_panel != null:
+		_summon_panel.queue_free()
+		_summon_panel = null
+	_summon_currency = null
+	_summon_results = null
+
+
+func _update_summon_currency() -> void:
+	if _summon_currency == null:
+		return
+	_summon_currency.text = "星轨碎片：%d    心愿尘埃：%d" % [RosterAutoload.astral(), RosterAutoload.dust()]
+	_summon_currency.add_theme_font_size_override("font_size", 16)
+	_summon_currency.add_theme_color_override("font_color", ColorTokens.INACTIVE)
+
+
+func _do_summon(n: int) -> void:
+	var before: Array = RosterAutoload.engine.roster.owned.keys()
+	var results: Array[CharacterInstance]
+	if n >= 10:
+		results = RosterAutoload.pull_ten()
+	else:
+		results = [RosterAutoload.pull()]
+	_rebuild_cards()
+	_update_summon_currency()
+	# 面板可能未打开（如冒烟直驱），结果区为空时跳过展示，仅保证抽卡+刷新不崩。
+	if _summon_results != null:
+		for c in _summon_results.get_children():
+			c.queue_free()
+		for inst in results:
+			var is_new: bool = not (inst.character_id in before)
+			var line := Label.new()
+			line.text = "%s  [%s]%s" % [
+				inst.display_name,
+				RARITY_LABEL[inst.rarity] if inst.rarity < RARITY_LABEL.size() else "?",
+				"（新！）" if is_new else "",
+			]
+			line.add_theme_font_size_override("font_size", 20)
+			line.add_theme_color_override("font_color", _rarity_color(inst.rarity))
+			_summon_results.add_child(line)
+
+
+func _rebuild_cards() -> void:
+	for c in _cards_grid.get_children():
+		c.queue_free()
+	_cards.clear()
+	_collect_owned()
+	_build_cards()
+	if _selected != null and _cards.has(_selected.character_id):
+		_select(_selected)
+	else:
+		_select_default()
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	# 预览拖拽旋转：在预览区内按下左键 → 捕获鼠标自由转；松开结束。
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			if _preview_container != null and _preview_container.get_global_rect().has_point(event.position):
+				_preview_dragging = true
+				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		elif _preview_dragging:
+			_preview_dragging = false
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif event is InputEventMouseMotion and _preview_dragging:
+		_preview_yaw -= event.relative.x * 0.01
+		_preview_pitch = clampf(_preview_pitch - event.relative.y * 0.01, -0.6, 0.6)
 	if event.is_action_pressed("ui_cancel"):
 		get_tree().change_scene_to_file("res://game/scenes/main_menu.tscn")

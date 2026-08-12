@@ -252,6 +252,13 @@ func _build_chassis(heavy: bool, slim: bool) -> void:
 	# 髋甲（骨盆两侧贴片，强化装甲层叠）。
 	_add(_box(0.14, 0.20, 0.16), _m_trim, Vector3(0.22 * tw, 0.78, 0.06))
 	_add(_box(0.14, 0.20, 0.16), _m_trim, Vector3(-0.22 * tw, 0.78, 0.06))
+	# 边缘自发光描边（签名色细线勾边，强化「机甲被签名色勾轮廓」的精致感）。
+	_add(_box(0.03, 1.0, 0.03), _m_accent, Vector3(0.50 * tw, 1.35, 0.0))   # 躯干左缘
+	_add(_box(0.03, 1.0, 0.03), _m_accent, Vector3(-0.50 * tw, 1.35, 0.0))  # 躯干右缘
+	_add(_box(sw, 0.04, 0.34), _m_accent, Vector3(0.50, 1.84, 0.0))          # 左肩顶描边
+	_add(_box(sw, 0.04, 0.34), _m_accent, Vector3(-0.50, 1.84, 0.0))         # 右肩顶描边
+	_add(_box(0.03, 0.42, 0.03), _m_accent, Vector3(0.35, 0.40, 0.0))        # 左大腿外侧
+	_add(_box(0.03, 0.42, 0.03), _m_accent, Vector3(-0.35, 0.40, 0.0))       # 右大腿外侧
 	# 贴地能量盘（签名色半透发光，接地 + 预览底座感）。
 	_add(_disc(0.72), _m_accent_soft, Vector3(0, 0.015, 0))
 

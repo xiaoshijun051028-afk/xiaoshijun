@@ -29,6 +29,13 @@ func _ready() -> void:
 		if RosterAutoload.get_active() != pick:
 			ok = false; msgs += "出战写入失败 "
 
+	# 星轨召唤完整路径冒烟：打开面板→十连→关闭，验证不崩且花名册卡片刷新一致。
+	cs._on_summon()
+	cs._do_summon(10)
+	cs._close_summon()
+	if cs._cards.size() != cs._owned.size():
+		ok = false; msgs += "召唤后卡片数不一致 "
+
 	if ok:
 		print("TEST_FINISHED_OK")
 		get_tree().quit(0)
