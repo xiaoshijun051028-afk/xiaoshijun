@@ -33,3 +33,7 @@ reports/
 addons/gdUnit4/
 # 重复目录（非规范位置 res://game/addons/，会重复注册 class）→ 不入库
 game/addons/gdUnit4/
+
+# 一次性工具 / 生成物（非项目源码，故意不入库）
+overview.md
+tools/_probe_cd.py
