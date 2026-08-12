@@ -79,6 +79,17 @@ const GATE_READY: Color = FRIENDLY_GOLD
 ## 此处临时取 UI_BG 提亮后的中性灰（与 UI 底同色族，保证面板上可读），待定稿。
 const INACTIVE: Color = Color(0.451, 0.482, 0.549)
 
+# --- 环境美术色（非语义信号） ---
+## 草原地图地表/草丛/地形用。**明确不**承担阵营/威胁语义，不触碰 THREAT 铁律；
+## 仅 arena 环境美术使用，攻防信号仍只走语义 Token（PLAYER_ALLY_MAIN / THREAT 等）。
+## 由主理人游承峰定稿（arena 草原化需求），非文策渊语义表项。
+
+## 草原地表·中绿 #4E7A3A。地面 albedo、草丛主色。
+const ENV_GRASS: Color = Color(0.306, 0.478, 0.227)
+
+## 土壤/地形阴影·暖褐 #5A4632。草丛根部、起伏阴影、非语义结构色。
+const ENV_SOIL: Color = Color(0.353, 0.275, 0.196)
+
 # ---------------------------------------------------------------------------
 # 2. CVD（色盲）替代色 —— design/color-tokens.md §2 表
 #    铁律：色相替换只是辅助，形状/图标/明度编码为**强制**（可访问性 F1）。
@@ -149,6 +160,8 @@ static func get_token(token_name: StringName) -> Color:
 			return GATE_READY
 		&"INACTIVE":
 			return INACTIVE
+		&"ENV_GRASS", &"ENV_SOIL":
+			return ENV_GRASS if token_name == &"ENV_GRASS" else ENV_SOIL
 	push_error("ColorTokens: 未知 Token 名 '%s'（权威表见 %s）" % [token_name, SOURCE_OF_TRUTH])
 	return Color.MAGENTA
 
@@ -158,7 +171,7 @@ static func all_token_names() -> PackedStringArray:
 	return PackedStringArray([
 		"PLAYER_ALLY_MAIN", "RESONANCE_GLOW", "FRIENDLY_TEAL", "FRIENDLY_GOLD",
 		"FRIENDLY_CORAL", "THREAT", "DAMAGE_WARN", "HEAL_BUFF", "UI_BG",
-		"SKY_AZURE", "GATE_READY", "INACTIVE",
+		"SKY_AZURE", 		"GATE_READY", "INACTIVE", "ENV_GRASS", "ENV_SOIL",
 		# 别名（合法引用，非退役名）
 		"FRIENDLY_AMBER", "UI_BASE", "INTERACT",
 	])

@@ -43,6 +43,9 @@ const ENEMY_ATTACK_PERIOD: float = 2.2
 const ENEMY_SPAWN_Z: float = -6.0
 const ENEMY_SPAWN_X: Array[float] = [-3.0, 0.0, 3.0]
 const ENEMY_TYPES: Array[StringName] = [&"brute", &"skirmisher", &"sentinel"]
+## 竞技场半宽与边界留白（敌人 clamp / 墙定位用）。
+const ARENA_HALF: float = FLOOR_SIZE * 0.5
+const BOUND_MARGIN: float = 1.0
 
 # ─────────────────────────────────────────────────────────────
 # 运行时
@@ -204,6 +207,11 @@ func _tick_movement(delta: float) -> void:
 	_rig.velocity = vel
 	_rig.move_and_slide()
 
+	# 边界兜底：玩家被不可见墙挡，这里再夹一次防墙缝（不能掉下台子）。
+	var plim := ARENA_HALF - 0.5
+	_rig.global_position.x = clampf(_rig.global_position.x, -plim, plim)
+	_rig.global_position.z = clampf(_rig.global_position.z, -plim, plim)
+
 	if dir.length() > 0.05:
 		# 模型正面朝 -Z，故用 (-x, -z) 求偏航。
 		var yaw: float = atan2(-dir.x, -dir.z)
@@ -337,6 +345,11 @@ func _tick_enemies(delta: float) -> void:
 		rt["last"] = st
 		_enemy_rt[e] = rt
 
+		# 边界 clamp：敌人直驱 global_position 不走碰撞，手动限制在场地内（不能掉下台子）。
+		var lim := ARENA_HALF - BOUND_MARGIN
+		e.global_position.x = clampf(e.global_position.x, -lim, lim)
+		e.global_position.z = clampf(e.global_position.z, -lim, lim)
+
 
 ## 清场后延迟刷新下一波。
 func _tick_waves(delta: float) -> void:
@@ -464,8 +477,8 @@ func _build_world() -> void:
 	plane.size = Vector2(FLOOR_SIZE, FLOOR_SIZE)
 	ground.mesh = plane
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = ColorTokens.UI_BG.lightened(0.12)
-	mat.roughness = 0.92
+	mat.albedo_color = ColorTokens.ENV_GRASS
+	mat.roughness = 1.0
 	ground.material_override = mat
 	add_child(ground)
 
@@ -502,6 +515,82 @@ func _build_world() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
+	# 草原环境：苍穹蓝天 + 远端淡雾（边界虚化，营造草原延伸至远方的错觉）。
+	var env_res := Environment.new()
+	env_res.background_mode = Environment.BG_COLOR
+	env_res.background_color = ColorTokens.SKY_AZURE
+	env_res.fog_enabled = true
+	env_res.fog_color = ColorTokens.SKY_AZURE.lightened(0.12)
+	env_res.fog_begin = 16.0
+	env_res.fog_end = 38.0
+	var world_env := WorldEnvironment.new()
+	world_env.name = "WorldEnv"
+	world_env.environment = env_res
+	add_child(world_env)
+
+	# 程序化草丛（MultiMesh 单 draw call，零外部资源）。
+	_spawn_grass()
+
+	# 不可见边界墙：挡玩家（CharacterBody3D 走 move_and_slide 被挡）。
+	# 敌人因直驱 global_position 不走碰撞，另在 _tick_enemies 做坐标 clamp。
+	_build_bounds()
+
+func _spawn_grass() -> void:
+	var field := MultiMeshInstance3D.new()
+	field.name = "GrassField"
+	var blade := CylinderMesh.new()
+	blade.top_radius = 0.0
+	blade.bottom_radius = 0.05
+	blade.height = 0.85
+	blade.radial_segments = 4
+	var gmat := StandardMaterial3D.new()
+	gmat.albedo_color = ColorTokens.ENV_GRASS
+	gmat.roughness = 1.0
+	field.material_override = gmat
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = blade
+	var n := 1500
+	mm.instance_count = n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1337
+	var half := ARENA_HALF - 1.5
+	for i in n:
+		var x := rng.randf_range(-half, half)
+		var z := rng.randf_range(-half, half)
+		var p := Vector3(x, 0.0, z)
+		# 避开玩家/敌人出生密集区，防草挡视线或穿模。
+		if p.distance_to(PLAYER_SPAWN_POS) < 2.4 or p.distance_to(DUMMY_SPAWN_POS) < 3.2:
+			x = rng.randf_range(half - 5.0, half) * (1.0 if rng.randf() < 0.5 else -1.0)
+			z = rng.randf_range(half - 5.0, half) * (1.0 if rng.randf() < 0.5 else -1.0)
+		var s := rng.randf_range(0.7, 1.5)
+		var t := Transform3D().scaled(Vector3(s, s, s))
+		t = t.rotated(Vector3.UP, rng.randf_range(0.0, TAU))
+		t = t.translated(Vector3(x, 0.425 * s, z))
+		mm.set_instance_transform(i, t)
+	field.multimesh = mm
+	add_child(field)
+
+func _build_bounds() -> void:
+	var half := ARENA_HALF
+	var wall_h := 4.0
+	var wall_t := 1.0
+	var specs := [
+		[0.0, half, FLOOR_SIZE + 2.0, wall_t],
+		[0.0, -half, FLOOR_SIZE + 2.0, wall_t],
+		[half, 0.0, wall_t, FLOOR_SIZE + 2.0],
+		[-half, 0.0, wall_t, FLOOR_SIZE + 2.0],
+	]
+	for s in specs:
+		var sb := StaticBody3D.new()
+		sb.name = "BoundWall"
+		var col := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(s[2], wall_h, s[3])
+		col.shape = box
+		col.position = Vector3(s[0], wall_h * 0.5, s[1])
+		sb.add_child(col)
+		add_child(sb)
 
 func _build_player() -> void:
 	_rig = CharacterBody3D.new()
