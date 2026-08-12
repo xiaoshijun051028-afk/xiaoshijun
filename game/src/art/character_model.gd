@@ -55,17 +55,19 @@ func build(id: StringName) -> void:
 
 
 ## 八台各路由到专属 builder（不再退化成四档通用剪影）。
+## 用户试玩反馈（2026-08-12）：不同人物「特效要一样」。占位阶段取消职阶强调色差异，
+## 所有机甲 accent emissive 统一为青白谐波虹膜 RESONANCE_GLOW，仅靠剪影区分职阶。
 func _spec_for(id: StringName) -> Dictionary:
 	match id:
-		&"ash_acolyte":         return {"builder": _build_blade,         "accent": ColorTokens.FRIENDLY_GOLD}
-		&"voidblade_lord":      return {"builder": _build_voidblade,    "accent": ColorTokens.FRIENDLY_GOLD * 0.8}
-		&"oath_guard":          return {"builder": _build_bulwark,      "accent": ColorTokens.SKY_AZURE}
-		&"bulwark_heart":       return {"builder": _build_bulwark_heart,"accent": ColorTokens.SKY_AZURE}
-		&"swift_ranger":        return {"builder": _build_windchaser,   "accent": ColorTokens.FRIENDLY_CORAL}
-		&"gale_echo":           return {"builder": _build_gale,         "accent": ColorTokens.FRIENDLY_CORAL}
+		&"ash_acolyte":         return {"builder": _build_blade,         "accent": ColorTokens.RESONANCE_GLOW}
+		&"voidblade_lord":      return {"builder": _build_voidblade,    "accent": ColorTokens.RESONANCE_GLOW}
+		&"oath_guard":          return {"builder": _build_bulwark,      "accent": ColorTokens.RESONANCE_GLOW}
+		&"bulwark_heart":       return {"builder": _build_bulwark_heart,"accent": ColorTokens.RESONANCE_GLOW}
+		&"swift_ranger":        return {"builder": _build_windchaser,   "accent": ColorTokens.RESONANCE_GLOW}
+		&"gale_echo":           return {"builder": _build_gale,         "accent": ColorTokens.RESONANCE_GLOW}
 		&"resonant_hierophant": return {"builder": _build_hierophant,   "accent": ColorTokens.RESONANCE_GLOW}
 		&"resonant_singer":     return {"builder": _build_singer,       "accent": ColorTokens.RESONANCE_GLOW}
-		_:                      return {"builder": _build_blade,         "accent": ColorTokens.PLAYER_ALLY_MAIN}
+		_:                      return {"builder": _build_blade,         "accent": ColorTokens.RESONANCE_GLOW}
 
 
 # --- 材质（例程级缓存，整机甲共享 ≤5 个材质实例）-----------------------------------
