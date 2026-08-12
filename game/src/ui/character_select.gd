@@ -90,10 +90,14 @@ func _build_ui() -> void:
 	pad.add_theme_constant_override("margin_right", 40)
 	pad.add_theme_constant_override("margin_top", 28)
 	pad.add_theme_constant_override("margin_bottom", 24)
+	# 必须让 pad/inner 纵向 EXPAND，否则整棵 UI 塌缩到最小高度，
+	# 底部「开始战斗」按钮栏会被挤出可视区（用户反馈“找不到按钮”的根因）。
+	pad.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(pad)
 
 	var inner := VBoxContainer.new()
 	inner.add_theme_constant_override("separation", 16)
+	inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	pad.add_child(inner)
 
 	var title := Label.new()

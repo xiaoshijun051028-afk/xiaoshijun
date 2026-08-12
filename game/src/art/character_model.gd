@@ -26,6 +26,12 @@ const BOB_SPEED: float = 1.6
 # 待补登为 ColorTokens const 后，此处应改为直接引用（消除散落 hex，满足 lint）。
 const MECH_BASE: Color = Color(0.165, 0.192, 0.251)          # 深岩灰 #2A3140 机甲 chassis 基色（友方）
 
+## 临时回退集合：5 台占位角色当前是 3 台真模型的字节级复制，先回退到各自专属程序化剪影避免撞脸。
+## 8/13 真 AI 模型覆盖 game/assets/mecha/mecha_<id>.glb 后，把此数组置空 [] 即可让真模型生效（见 8/13 定时任务）。
+const PROCEDURAL_FALLBACK_IDS: Array = [
+	&"bulwark_heart", &"swift_ranger", &"gale_echo", &"resonant_hierophant", &"resonant_singer"
+]
+
 var _id: StringName = &""
 var _base_y: float = 0.0
 var _spin: bool = false
@@ -57,7 +63,9 @@ func build(id: StringName) -> void:
 	_spin = spec.get("spin", false)
 	var s: float = spec.get("scale", 1.0)
 	var accent: Color = spec.get("accent", ColorTokens.RESONANCE_GLOW)
-	if _try_load_glb(id, accent):
+	# 临时：5 台占位角色（GLB 为复制件）回退到各自专属程序化剪影，避免与 3 台真模型撞脸。
+	# 8/13 真 AI 模型覆盖 GLB 后，_is_procedural_pending 改回全 false 即失效。
+	if not _is_procedural_pending(id) and _try_load_glb(id, accent):
 		scale = Vector3(s, s, s)
 		_base_y = position.y
 		return
@@ -66,6 +74,16 @@ func build(id: StringName) -> void:
 	builder.call(accent)
 	scale = Vector3(s, s, s)
 	_base_y = position.y
+
+
+## 临时判定：5 台占位角色当前用复制 GLB，先回退到各自专属程序化剪影避免撞脸。
+## 8/13 真 AI 模型覆盖 game/assets/mecha/mecha_<id>.glb 后，把此函数体改为 `return false` 即可让真模型生效。
+static func _is_procedural_pending(id: StringName) -> bool:
+	match id:
+		&"bulwark_heart", &"swift_ranger", &"gale_echo", &"resonant_hierophant", &"resonant_singer":
+			return true
+		_:
+			return false
 
 
 func _try_load_glb(id: StringName, accent: Color) -> bool:
