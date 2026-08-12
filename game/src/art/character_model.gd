@@ -38,6 +38,7 @@ var _m_dark: StandardMaterial3D = null
 var _m_faction: StandardMaterial3D = null
 var _m_accent: StandardMaterial3D = null
 var _m_wing: StandardMaterial3D = null
+var _m_accent_soft: StandardMaterial3D = null
 var _accent_base: Color = Color.WHITE  # 用于心核脉冲（调 emissive 颜色亮度，不碰 emission_intensity）
 
 
@@ -94,12 +95,17 @@ static func accent_of(id: StringName) -> Color:
 
 func _make_materials(accent: Color) -> void:
 	_accent_base = accent
-	_m_chassis = _mat(MECH_BASE, false, 0.70, 0.45)                 # 主装甲：金属感
-	_m_trim    = _mat(MECH_BASE.lightened(0.28), false, 0.85, 0.32)  # 外衬亮板：更高金属/更低粗糙
+	_m_chassis = _mat(MECH_BASE, false, 0.70, 0.42)                 # 主装甲：金属感
+	_m_chassis.clearcoat = 0.35
+	_m_chassis.clearcoat_roughness = 0.35
+	_m_trim    = _mat(MECH_BASE.lightened(0.28), false, 0.88, 0.28)  # 外衬亮板：更高金属/更低粗糙 + 清漆层
+	_m_trim.clearcoat = 0.65
+	_m_trim.clearcoat_roughness = 0.22
 	_m_dark    = _mat(MECH_BASE * 0.5, false, 0.55, 0.62)            # 关节/暗描边
 	_m_faction = _mat(ColorTokens.PLAYER_ALLY_MAIN, true, 0.20, 0.5) # 共鸣回路（发青白）
 	_m_accent  = _mat(accent, true, 0.30, 0.40)                      # 识别件（统一青白）
 	_m_wing    = _mat(ColorTokens.RESONANCE_GLOW, true, 0.0, 0.4, true)  # 半透发光翼
+	_m_accent_soft = _mat(accent, true, 0.0, 0.4, true)             # 贴地能量盘（半透发光，呼吸由 _process 调制）
 
 
 func _mat(color: Color, emissive: bool, metallic: float = 0.0, roughness: float = 0.6, transparent: bool = false) -> StandardMaterial3D:
@@ -169,6 +175,15 @@ func _torus(ri: float, ro: float) -> TorusMesh:
 	return t
 
 
+# 扁平能量盘（贴地 / 底座光晕）。
+func _disc(r: float) -> CylinderMesh:
+	var c := CylinderMesh.new()
+	c.top_radius = r
+	c.bottom_radius = r
+	c.height = 0.02
+	return c
+
+
 # --- 通用 chassis（四职阶共用机身结构；剪影差异只靠本脚本的几何体积）--------------
 
 func _build_chassis(heavy: bool, slim: bool) -> void:
@@ -227,6 +242,18 @@ func _build_chassis(heavy: bool, slim: bool) -> void:
 	_add(_box(tw * 0.92, 0.10, td * 0.92), _m_accent, Vector3(0, 0.82, 0.02))
 	# 脚底光环（签名色贴地环，接地 + 预览展示底座感）。
 	_add(_torus(0.50, 0.64), _m_accent, Vector3(0, 0.03, 0), Vector3(90, 0, 0))
+	# 颈环 + 胸口签名色徽记（环+核，覆于共鸣核心之上，强化阵营识别）。
+	_add(_torus(0.10, 0.16), _m_trim, Vector3(0, 1.86, 0), Vector3(90, 0, 0))
+	_add(_torus(0.10, 0.16), _m_accent, Vector3(0, 1.50, 0.30))
+	_add(_sphere(0.07), _m_accent, Vector3(0, 1.50, 0.32))
+	# 躯干前缘发光肋（签名色细条，模拟边缘光）。
+	_add(_box(0.03, 0.66, 0.03), _m_accent, Vector3(0.24 * tw, 1.45, 0.27))
+	_add(_box(0.03, 0.66, 0.03), _m_accent, Vector3(-0.24 * tw, 1.45, 0.27))
+	# 髋甲（骨盆两侧贴片，强化装甲层叠）。
+	_add(_box(0.14, 0.20, 0.16), _m_trim, Vector3(0.22 * tw, 0.78, 0.06))
+	_add(_box(0.14, 0.20, 0.16), _m_trim, Vector3(-0.22 * tw, 0.78, 0.06))
+	# 贴地能量盘（签名色半透发光，接地 + 预览底座感）。
+	_add(_disc(0.72), _m_accent_soft, Vector3(0, 0.015, 0))
 
 
 # 沿躯干/肩/腿的发光共鸣回路（面板缝）+ 胸口动力核心（阵营结构色，全 8 台共用）。
@@ -247,6 +274,7 @@ func _build_blade(accent: Color) -> void:
 	_add(_cyl(0.04, 0.30), _m_dark, Vector3(0.62, 1.00, 0.10))           # 握柄
 	_add(_box(0.22, 0.05, 0.06), _m_trim, Vector3(0.62, 1.15, 0.10))     # 护手
 	_add(_taper(0.02, 0.09, 1.10), _m_accent, Vector3(0.62, 1.70, 0.12), Vector3(0, 0, 8))  # 锥刃
+	_add(_box(0.02, 0.95, 0.02), _m_accent, Vector3(0.62, 1.66, 0.15), Vector3(0, 0, 8))     # 刃脊发光线
 	_add(_box(0.05, 0.05, 0.04), _m_accent, Vector3(0, 2.16, 0.14))     # 额心节点
 
 
@@ -287,6 +315,7 @@ func _build_windchaser(accent: Color) -> void:
 	_build_chassis(false, true)
 	_build_conduits()
 	_add(_taper(0.03, 0.03, 1.60), _m_chassis, Vector3(0.55, 1.20, 0.35), Vector3(80, 0, 0)) # 枪杆
+	_add(_box(0.02, 1.40, 0.02), _m_accent, Vector3(0.55, 1.20, 0.40), Vector3(80, 0, 0))   # 枪杆发光线
 	_add(_box(0.10, 0.10, 0.10), _m_accent, Vector3(0.55, 1.20, 1.05))                      # 枪尖
 	_add(_box(0.50, 0.06, 0.34), _m_accent, Vector3(0.45, 1.70, -0.25), Vector3(0, 0, 35))  # 右羽翼
 	_add(_box(0.50, 0.06, 0.34), _m_accent, Vector3(-0.45, 1.70, -0.25), Vector3(0, 0, -35)) # 左羽翼
@@ -341,6 +370,15 @@ func _process(delta: float) -> void:
 	# 心核脉冲（仅磐心卫士/谐律主祭开启），呼应「心跳/吟唱」节奏。
 	# ⚠ 本项目 Physical Light Units 未开，不能设 emission_intensity；
 	# 故用 emissive 颜色亮度调制（glow 强度封顶，避免 bloom 过曝，见 art-bible §6.2）。
+	# 共鸣回路呼吸（全角色）：青白能量条轻微明灭，赋予机体「活着」的质感。
+	if _m_faction != null:
+		var kf: float = 0.65 + 0.25 * (0.5 + 0.5 * sin(_t * 2.2))
+		_m_faction.emissive = ColorTokens.PLAYER_ALLY_MAIN * kf
+	# 贴地能量盘呼吸（全角色）：签名色光晕缓明缓暗，强化底座存在感。
+	if _m_accent_soft != null:
+		var ks: float = 0.5 + 0.3 * (0.5 + 0.5 * sin(_t * 1.5))
+		_m_accent_soft.emissive = _accent_base * ks
+	# 心核脉冲（仅磐心卫士/谐律主祭）：签名色整体随「心跳/吟唱」强脉冲。
 	if _pulse and _m_accent != null:
 		var k: float = 0.7 + 0.3 * (0.5 + 0.5 * sin(_t * 3.0))
 		_m_accent.emissive = _accent_base * k

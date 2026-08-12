@@ -11,7 +11,7 @@ var accent: Color = ColorTokens.RESONANCE_GLOW   # 当前出战角色签名色�
 var profile: StringName = &"__player__"          # 当前出战角色 id（决定特效样式）
 
 
-func _fx(mesh: Mesh, color: Color, pos: Vector3, rot_deg: Vector3, start_s: float, end_s: float, dur: float) -> void:
+func _fx(mesh: Mesh, color: Color, pos: Vector3, rot_deg: Vector3, start_s: float, end_s: float, dur: float, sweep_deg: float = 0.0) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	var m := StandardMaterial3D.new()
@@ -29,6 +29,10 @@ func _fx(mesh: Mesh, color: Color, pos: Vector3, rot_deg: Vector3, start_s: floa
 	var tw := create_tween()
 	tw.tween_property(mi, "scale", Vector3.ONE * end_s, dur)
 	tw.parallel().tween_property(m, "albedo_color:a", 0.0, dur)
+	# 可选挥扫：绕 Z 轴从 -sweep 摆到 +sweep，让静态弧光有「挥出去」的动势。
+	if sweep_deg > 0.0:
+		mi.rotation_degrees.z = rot_deg.z - sweep_deg
+		tw.parallel().tween_property(mi, "rotation_degrees:z", rot_deg.z + sweep_deg, dur)
 	# 计时器兜底清理，确保即便 tween 异常也不会留下孤儿节点。
 	if get_tree() != null:
 		var t := get_tree().create_timer(dur)
@@ -50,6 +54,17 @@ func _ball(pos: Vector3, r: float, end_s: float, dur: float) -> void:
 	_fx(s, accent, pos, Vector3.ZERO, 0.5, end_s, dur)
 
 
+# 放射火花（斩击/命中/终结的「碎屑」层次，强化动感与打击密度）。
+func _spark_burst(pos: Vector3, color: Color, count: int, radius: float) -> void:
+	for i in count:
+		var ang := deg_to_rad(float(i) / float(count) * 360.0)
+		var off := Vector3(cos(ang), randf() * 0.6, sin(ang)) * radius
+		var s := SphereMesh.new()
+		s.radius = 0.10
+		s.height = 0.20
+		_fx(s, color, pos + off, Vector3.ZERO, 0.6, 0.02, 0.28 + randf() * 0.12)
+
+
 # =====================================================================================
 # 斩击：8 角色 8 套样式（命中与否都展示，给玩家明确的「我挥了」反馈；尺寸已放大）
 # =====================================================================================
@@ -65,6 +80,8 @@ func slash(pos: Vector3) -> void:
 		&"resonant_hierophant": _slash_rings(pos)
 		&"resonant_singer":     _slash_wave(pos)
 		_:                      _slash_crescent(pos)
+	# 统一补一层放射火花，强化「挥击碎屑」层次（八角色共用）。
+	_spark_burst(pos, accent, 5, 1.1)
 
 
 ## BLADE 锋刃·旭金：上挑新月弧（锐利、快）。
@@ -72,7 +89,7 @@ func _slash_crescent(pos: Vector3) -> void:
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.75
 	ring.outer_radius = 1.7
-	_fx(ring, accent, pos, Vector3(-60.0, 0.0, 0.0), 0.5, 2.9, 0.38)
+	_fx(ring, accent, pos, Vector3(-60.0, 0.0, 0.0), 0.5, 2.9, 0.38, 50.0)
 
 
 ## BLADE·断空·霜白：双刀交叉 X 斩。
@@ -87,7 +104,7 @@ func _slash_cross(pos: Vector3) -> void:
 func _slash_shock(pos: Vector3) -> void:
 	_ring(pos, 0.9, 1.7, 3.2, 0.42)
 	var arc := TorusMesh.new(); arc.inner_radius = 0.5; arc.outer_radius = 1.1
-	_fx(arc, accent, pos + Vector3(0.0, 0.0, 0.6), Vector3(-90.0, 0.0, 0.0), 0.5, 2.2, 0.4)
+	_fx(arc, accent, pos + Vector3(0.0, 0.0, 0.6), Vector3(-90.0, 0.0, 0.0), 0.5, 2.2, 0.4, 40.0)
 
 
 ## BULWARK·磐心·玉青：双核脉冲（左右两球扩张）。
@@ -107,7 +124,7 @@ func _slash_streak(pos: Vector3) -> void:
 ## WINDCHASER·疾风·玫红：刃风暴（环 + 四向辐条）。
 func _slash_storm(pos: Vector3) -> void:
 	var ring := TorusMesh.new(); ring.inner_radius = 0.6; ring.outer_radius = 1.4
-	_fx(ring, accent, pos, Vector3(-90.0, 0.0, 0.0), 0.5, 3.0, 0.4)
+	_fx(ring, accent, pos, Vector3(-90.0, 0.0, 0.0), 0.5, 3.0, 0.4, 60.0)
 	for i in 4:
 		var b := BoxMesh.new(); b.size = Vector3(0.12, 0.12, 1.3)
 		_fx(b, accent, pos, Vector3(0.0, float(i) * 90.0, 0.0), 0.5, 2.6, 0.4)
@@ -116,7 +133,7 @@ func _slash_storm(pos: Vector3) -> void:
 ## RESONANT 谐律主祭·碧蓝：谐波同心双环。
 func _slash_rings(pos: Vector3) -> void:
 	var r1 := TorusMesh.new(); r1.inner_radius = 0.6; r1.outer_radius = 1.5
-	_fx(r1, accent, pos, Vector3(-90.0, 0.0, 0.0), 0.5, 3.0, 0.4)
+	_fx(r1, accent, pos, Vector3(-90.0, 0.0, 0.0), 0.5, 3.0, 0.4, 30.0)
 	var r2 := TorusMesh.new(); r2.inner_radius = 1.1; r2.outer_radius = 1.5
 	_fx(r2, accent, pos, Vector3(-90.0, 0.0, 0.0), 0.5, 3.6, 0.46)
 
@@ -124,7 +141,7 @@ func _slash_rings(pos: Vector3) -> void:
 ## RESONANT 共鸣歌者·紫晶：宽幅声波弧。
 func _slash_wave(pos: Vector3) -> void:
 	var arc := TorusMesh.new(); arc.inner_radius = 1.0; arc.outer_radius = 1.8
-	_fx(arc, accent, pos, Vector3(-90.0, 0.0, 0.0), 0.5, 3.4, 0.42)
+	_fx(arc, accent, pos, Vector3(-90.0, 0.0, 0.0), 0.5, 3.4, 0.42, 40.0)
 
 
 # =====================================================================================
@@ -142,6 +159,9 @@ func finisher(pos: Vector3) -> void:
 		&"resonant_hierophant": _fin_hierophant(pos)
 		&"resonant_singer":     _fin_singer(pos)
 		_:                      _fin_ash(pos)
+	# 终结前导快环 + 收尾放射星火，强化高潮爆发感。
+	_ring(pos, 0.3, 0.9, 3.4, 0.3)
+	_spark_burst(pos, accent, 9, 1.7)
 
 
 ## 锋刃·旭金：升腾光柱 + 环 + 核。
@@ -247,6 +267,14 @@ func hit_impact(pos: Vector3, color: Color) -> void:
 	core.radius = 0.24
 	core.height = 0.48
 	_fx(core, Color(1.0, 1.0, 1.0), pos, Vector3.ZERO, 0.45, 0.03, 0.2)
+	# 受击方向碎屑四散，强化「打到了」的密度反馈。
+	for i in 4:
+		var ang := deg_to_rad(float(i) * 90.0)
+		var off := Vector3(cos(ang), 0.3, sin(ang)) * 0.7
+		var sp := SphereMesh.new()
+		sp.radius = 0.08
+		sp.height = 0.16
+		_fx(sp, color, pos + off, Vector3.ZERO, 0.6, 0.02, 0.26)
 
 
 ## 浮动伤害数字（Label3D，默认字体，零外部资源）。上升 + 淡出，明确「−X」。
