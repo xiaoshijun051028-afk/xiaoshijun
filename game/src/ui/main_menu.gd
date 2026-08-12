@@ -45,7 +45,7 @@ func _add_button(parent: VBoxContainer, text: String, cb: Callable) -> void:
 
 
 func _on_play() -> void:
-	get_tree().change_scene_to_file("res://game/scenes/arena_min.tscn")
+	get_tree().change_scene_to_file("res://game/scenes/character_select.tscn")
 
 
 func _on_gacha() -> void:
