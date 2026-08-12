@@ -112,10 +112,16 @@ func _build_ui() -> void:
 	hint.add_theme_color_override("font_color", ColorTokens.INACTIVE)
 	inner.add_child(hint)
 
+	# 中部内容区：可滚动，保证窗口较矮时细节列不会把底部按钮挤出屏幕。
+	var scroller := ScrollContainer.new()
+	scroller.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroller.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inner.add_child(scroller)
+
 	var split := HSplitContainer.new()
-	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.size_flags_vertical = Control.SIZE_SHRINK_BEGIN   # 保持最小高度 → 过高时由 scroller 纵向滚动
 	split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inner.add_child(split)
+	scroller.add_child(split)
 
 	# 左：可滚动卡片网格
 	var scroll := ScrollContainer.new()
@@ -152,12 +158,14 @@ func _build_ui() -> void:
 	_detail_text.add_theme_constant_override("separation", 8)
 	_detail.add_child(_detail_text)
 
-	# 底：操作按钮（开始战斗 作为主按钮，实心高亮；其余为描边次按钮）
+	# 底：操作按钮（开始战斗 作为主按钮，实心高亮；其余为描边次按钮）。
+	# 关键：bar 直接挂在 root 上（pad 的兄弟节点），始终钉在视口底部，
+	# 绝不随中部内容滚动或溢出 —— 这是「开始战斗」按钮之前消失的根因。
 	var bar := HBoxContainer.new()
 	bar.alignment = BoxContainer.ALIGNMENT_CENTER
 	bar.size_flags_vertical = Control.SIZE_SHRINK_END
 	bar.add_theme_constant_override("separation", 20)
-	inner.add_child(bar)
+	root.add_child(bar)
 
 	_add_button(bar, "开始战斗", _on_confirm, ColorTokens.RESONANCE_GLOW, true)
 	_add_button(bar, "星轨召唤", _on_summon, ColorTokens.FRIENDLY_GOLD)
@@ -284,19 +292,19 @@ func _refresh_detail() -> void:
 	name.text = "%s  [%s]" % [_selected.display_name, RARITY_LABEL[_selected.rarity] if _selected.rarity < RARITY_LABEL.size() else "?"]
 	name.add_theme_font_size_override("font_size", 30)
 	name.add_theme_color_override("font_color", rc)
-	_detail.add_child(name)
+	_detail_text.add_child(name)
 
 	var arch := Label.new()
 	arch.text = "职阶：%s" % ARCH_LABEL.get(_selected.archetype, String(_selected.archetype))
 	arch.add_theme_font_size_override("font_size", 18)
 	arch.add_theme_color_override("font_color", ColorTokens.INACTIVE)
-	_detail.add_child(arch)
+	_detail_text.add_child(arch)
 
-	_detail.add_child(_stat_line("生命", _selected.final_hp, ColorTokens.PLAYER_ALLY_MAIN))
-	_detail.add_child(_stat_line("攻击", _selected.final_attack, ColorTokens.FRIENDLY_CORAL))
-	_detail.add_child(_stat_line("防御", _selected.final_defense, ColorTokens.SKY_AZURE))
-	_detail.add_child(_stat_line("速度", _selected.final_move_speed, ColorTokens.PLAYER_ALLY_MAIN))
-	_detail.add_child(_stat_line("共鸣亲和", _selected.final_affinity, ColorTokens.RESONANCE_GLOW))
+	_detail_text.add_child(_stat_line("生命", _selected.final_hp, ColorTokens.PLAYER_ALLY_MAIN))
+	_detail_text.add_child(_stat_line("攻击", _selected.final_attack, ColorTokens.FRIENDLY_CORAL))
+	_detail_text.add_child(_stat_line("防御", _selected.final_defense, ColorTokens.SKY_AZURE))
+	_detail_text.add_child(_stat_line("速度", _selected.final_move_speed, ColorTokens.PLAYER_ALLY_MAIN))
+	_detail_text.add_child(_stat_line("共鸣亲和", _selected.final_affinity, ColorTokens.RESONANCE_GLOW))
 
 	# 角色技能名（与竞技场 HUD 同一来源）
 	var sk_name := "无"
@@ -307,7 +315,7 @@ func _refresh_detail() -> void:
 	skill.text = "主动技能：%s" % sk_name
 	skill.add_theme_font_size_override("font_size", 18)
 	skill.add_theme_color_override("font_color", ColorTokens.FRIENDLY_GOLD)
-	_detail.add_child(skill)
+	_detail_text.add_child(skill)
 
 
 func _stat_line(label: String, value: int, accent: Color) -> Label:
