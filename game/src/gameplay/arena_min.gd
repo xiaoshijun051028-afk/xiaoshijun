@@ -535,6 +535,30 @@ func _build_world() -> void:
 	# 敌人因直驱 global_position 不走碰撞，另在 _tick_enemies 做坐标 clamp。
 	_build_bounds()
 
+# 草丛随风轻摆着色器：根部不动、越高摆幅越大，相位按世界坐标错开使每丛不同步。
+# 草绿取自 ColorTokens.ENV_GRASS（着色器参数注入，本文件不出现颜色字面量）。
+const GRASS_SWAY_SHADER := """shader_type spatial;
+uniform vec3 u_grass_color : source_color;
+uniform float u_wind_speed : hint_range(0.0, 4.0) = 1.6;
+uniform float u_wind_amp : hint_range(0.0, 0.5) = 0.12;
+uniform float u_blade_height : hint_range(0.1, 3.0) = 0.85;
+
+void vertex() {
+	vec3 world_pos = (MODEL_MATRIX * INSTANCE_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	float h = clamp((VERTEX.y + (u_blade_height * 0.5)) / u_blade_height, 0.0, 1.0);
+	float phase = world_pos.x * 0.6 + world_pos.z * 0.35;
+	float sway = sin(TIME * u_wind_speed + phase) * u_wind_amp * h;
+	float sway2 = cos(TIME * u_wind_speed * 0.7 + phase * 1.3) * (u_wind_amp * 0.5) * h;
+	VERTEX.x += sway;
+	VERTEX.z += sway2;
+}
+
+void fragment() {
+	float h = clamp((VERTEX.y + (u_blade_height * 0.5)) / u_blade_height, 0.0, 1.0);
+	ALBEDO = u_grass_color * (0.7 + 0.3 * h);
+}
+"""
+
 func _spawn_grass() -> void:
 	var field := MultiMeshInstance3D.new()
 	field.name = "GrassField"
@@ -543,9 +567,12 @@ func _spawn_grass() -> void:
 	blade.bottom_radius = 0.05
 	blade.height = 0.85
 	blade.radial_segments = 4
-	var gmat := StandardMaterial3D.new()
-	gmat.albedo_color = ColorTokens.ENV_GRASS
-	gmat.roughness = 1.0
+	var sh := Shader.new()
+	sh.code = GRASS_SWAY_SHADER
+	var gmat := ShaderMaterial.new()
+	gmat.shader = sh
+	gmat.set_shader_parameter("u_grass_color", ColorTokens.ENV_GRASS)
+	gmat.set_shader_parameter("u_blade_height", blade.height)
 	field.material_override = gmat
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
