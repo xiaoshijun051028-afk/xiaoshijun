@@ -20,6 +20,10 @@ var _owned: Array[CharacterInstance] = []
 var _selected: CharacterInstance = null
 var _cards: Dictionary = {}        # character_id -> Button
 var _detail: VBoxContainer = null
+var _detail_text: VBoxContainer = null      # 文字详情（_refresh_detail 只清这个，不碰预览）
+var _preview_container: SubViewportContainer = null
+var _preview_sub: SubViewport = null
+var _preview_pivot: Node3D = null           # 旋转轴：承载机甲模型，_process 持续自转
 var _sel_style: StyleBoxFlat = null
 var _norm_style: StyleBoxFlat = null
 
@@ -123,6 +127,18 @@ func _build_ui() -> void:
 	split.add_child(detail)
 	_detail = detail
 
+	# 右栏顶部：实时 3D 机甲预览（自动旋转），下方为文字详情。
+	_build_preview()
+	var cap := Label.new()
+	cap.text = "实时预览 · 自动旋转"
+	cap.add_theme_font_size_override("font_size", 15)
+	cap.add_theme_color_override("font_color", ColorTokens.INACTIVE)
+	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_detail.add_child(cap)
+	_detail_text = VBoxContainer.new()
+	_detail_text.add_theme_constant_override("separation", 8)
+	_detail.add_child(_detail_text)
+
 	# 底：操作按钮
 	var bar := HBoxContainer.new()
 	bar.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -225,10 +241,11 @@ func _select_default() -> void:
 # --- 详情面板 ------------------------------------------------------------------
 
 func _refresh_detail() -> void:
-	for c in _detail.get_children():
+	for c in _detail_text.get_children():
 		c.queue_free()
 	if _selected == null:
 		return
+	_set_preview_model(_selected.character_id)
 	var rc: Color = _rarity_color(_selected.rarity)
 
 	var name := Label.new()
@@ -267,6 +284,70 @@ func _stat_line(label: String, value: int, accent: Color) -> Label:
 	l.add_theme_font_size_override("font_size", 18)
 	l.add_theme_color_override("font_color", accent)
 	return l
+
+
+# --- 实时 3D 预览（SubViewport 渲染选中机甲，自动旋转）---------------------------
+
+func _build_preview() -> void:
+	_preview_container = SubViewportContainer.new()
+	_preview_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_preview_container.custom_minimum_size = Vector2(340, 300)
+	_preview_container.stretch = true
+	_detail.add_child(_preview_container)
+
+	var vp := SubViewport.new()
+	vp.size = Vector2(512, 480)
+	vp.transparent_bg = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_preview_container.add_child(vp)
+	_preview_sub = vp
+
+	# 摄影机：正对机身中段、略仰视。
+	var cam := Camera3D.new()
+	cam.position = Vector3(0.0, 1.35, 4.0)
+	cam.look_at(Vector3(0.0, 1.25, 0.0), Vector3.UP)
+	vp.add_child(cam)
+
+	# 打光：主光（白）+ 补光（苍穹蓝）+ 轮廓光（青白），保证无环境也能看清 albedo 与 emissive。
+	var key := DirectionalLight3D.new()
+	key.position = Vector3(3.0, 5.0, 4.0)
+	key.look_at(Vector3.ZERO)
+	key.light_color = Color.WHITE
+	key.light_energy = 1.6
+	vp.add_child(key)
+
+	var fill := DirectionalLight3D.new()
+	fill.position = Vector3(-4.0, 2.0, -2.0)
+	fill.look_at(Vector3.ZERO)
+	fill.light_color = ColorTokens.SKY_AZURE
+	fill.light_energy = 0.5
+	vp.add_child(fill)
+
+	var rim := OmniLight3D.new()
+	rim.position = Vector3(0.0, 1.4, -3.0)
+	rim.light_color = ColorTokens.RESONANCE_GLOW
+	rim.light_energy = 0.8
+	vp.add_child(rim)
+
+	# 旋转轴：承载机甲模型，_process 中持续自转。
+	_preview_pivot = Node3D.new()
+	vp.add_child(_preview_pivot)
+
+
+func _set_preview_model(id: StringName) -> void:
+	if _preview_pivot == null:
+		return
+	for c in _preview_pivot.get_children():
+		c.queue_free()
+		_preview_pivot.remove_child(c)
+	var m := CharacterModel.new()
+	m.build(id)
+	_preview_pivot.add_child(m)
+
+
+func _process(delta: float) -> void:
+	if _preview_pivot != null:
+		_preview_pivot.rotation.y += delta * 0.6
 
 
 # --- 操作 ----------------------------------------------------------------------
