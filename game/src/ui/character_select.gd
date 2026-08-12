@@ -103,7 +103,7 @@ func _build_ui() -> void:
 	inner.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "点击卡片选择 · 右侧查看详情 · 确认后进入战斗"
+	hint.text = "点击卡片选择 · 右侧查看详情 · 点「开始战斗」进入竞技场"
 	hint.add_theme_font_size_override("font_size", 16)
 	hint.add_theme_color_override("font_color", ColorTokens.INACTIVE)
 	inner.add_child(hint)
@@ -148,26 +148,44 @@ func _build_ui() -> void:
 	_detail_text.add_theme_constant_override("separation", 8)
 	_detail.add_child(_detail_text)
 
-	# 底：操作按钮
+	# 底：操作按钮（开始战斗 作为主按钮，实心高亮；其余为描边次按钮）
 	var bar := HBoxContainer.new()
 	bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	bar.size_flags_vertical = Control.SIZE_SHRINK_END
 	bar.add_theme_constant_override("separation", 20)
 	inner.add_child(bar)
 
+	_add_button(bar, "开始战斗", _on_confirm, ColorTokens.RESONANCE_GLOW, true)
 	_add_button(bar, "星轨召唤", _on_summon, ColorTokens.FRIENDLY_GOLD)
-	_add_button(bar, "确认出战", _on_confirm, ColorTokens.RESONANCE_GLOW)
 	_add_button(bar, "返回菜单", _on_back, ColorTokens.INACTIVE)
 
 
 var _cards_grid: GridContainer = null
 
 
-func _add_button(parent: HBoxContainer, text: String, cb: Callable, accent: Color) -> void:
+func _add_button(parent: HBoxContainer, text: String, cb: Callable, accent: Color, primary: bool = false) -> void:
 	var b := Button.new()
 	b.text = text
 	b.add_theme_font_size_override("font_size", 26)
 	b.custom_minimum_size = Vector2(220, 56)
-	b.add_theme_color_override("font_color", accent)
+	var sb := StyleBoxFlat.new()
+	if primary:
+		# 主按钮：实心高亮底 + 深色字，确保「开始」无法被忽略。
+		sb.bg_color = accent
+		sb.border_color = accent.lightened(0.3)
+		b.add_theme_color_override("font_color", Color(0.04, 0.06, 0.09))
+		b.custom_minimum_size = Vector2(280, 66)
+		b.add_theme_font_size_override("font_size", 30)
+	else:
+		sb.bg_color = ColorTokens.UI_BG.lightened(0.18)
+		sb.border_color = accent
+		b.add_theme_color_override("font_color", accent)
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(10)
+	sb.set_content_margin_all(10)
+	b.add_theme_stylebox_override("normal", sb)
+	b.add_theme_stylebox_override("hover", sb)
+	b.add_theme_stylebox_override("pressed", sb)
 	b.pressed.connect(cb)
 	parent.add_child(b)
 
