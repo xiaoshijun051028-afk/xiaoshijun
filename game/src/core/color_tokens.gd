@@ -90,6 +90,28 @@ const ENV_GRASS: Color = Color(0.306, 0.478, 0.227)
 ## 土壤/地形阴影·暖褐 #5A4632。草丛根部、起伏阴影、非语义结构色。
 const ENV_SOIL: Color = Color(0.353, 0.275, 0.196)
 
+# --- 角色签名色（Character Signature Colors）---
+## 单位主题色：每个出战角色独立签名色，仅该角色模型的共鸣回路/识别件与专属战斗特效使用。
+## 设计：友方明亮谱系内 8 个互异 hue（不碰 THREAT 品红铁律），遵循 gacha 单位主题色惯例。
+## 由主理人游承峰定稿（S10「不同人物特效完全不一样」需求），非文策渊语义信号表项。
+
+## ash_acolyte 锋刃·旭金 #FFD66B。暖金剑光、单剑剪影。
+const ACCENT_ASH: Color = Color(1.0, 0.839, 0.420)
+## voidblade_lord 断空剑主·霜白 #BFE3FF。冷银霜刃、双巨剑。
+const ACCENT_VOID: Color = Color(0.749, 0.890, 1.0)
+## oath_guard 磐盾·皇家蓝 #4F8BFF。厚重守护、塔盾。
+const ACCENT_OATH: Color = Color(0.310, 0.545, 1.0)
+## bulwark_heart 磐心卫士·玉青 #2FD6C0。双心核脉冲、短盾。
+const ACCENT_HEART: Color = Color(0.184, 0.839, 0.753)
+## swift_ranger 风追·炽橙 #FF7A4D。流线疾袭、长枪羽翼。
+const ACCENT_RANGER: Color = Color(1.0, 0.478, 0.302)
+## gale_echo 疾风回响·玫红 #FF5FA8。半透翼、光环。
+const ACCENT_GALE: Color = Color(1.0, 0.373, 0.659)
+## resonant_hierophant 谐律主祭·碧蓝 #6FF0FF。大头光环、环杖。
+const ACCENT_HIEROPHANT: Color = Color(0.435, 0.941, 1.0)
+## resonant_singer 共鸣歌者·紫晶 #B98CFF。发束头饰、浮游球。
+const ACCENT_SINGER: Color = Color(0.725, 0.549, 1.0)
+
 # ---------------------------------------------------------------------------
 # 2. CVD（色盲）替代色 —— design/color-tokens.md §2 表
 #    铁律：色相替换只是辅助，形状/图标/明度编码为**强制**（可访问性 F1）。
@@ -131,6 +153,16 @@ const CVD_FRIENDLY_CORAL: Color = Color(1.0, 0.620, 0.251)
 @export var gate_ready: Color = GATE_READY
 @export var inactive: Color = INACTIVE
 
+# --- 角色签名色（调色板实例字段，与上方 const 同名）---
+@export var accent_ash: Color = ACCENT_ASH
+@export var accent_void: Color = ACCENT_VOID
+@export var accent_oath: Color = ACCENT_OATH
+@export var accent_heart: Color = ACCENT_HEART
+@export var accent_ranger: Color = ACCENT_RANGER
+@export var accent_gale: Color = ACCENT_GALE
+@export var accent_hierophant: Color = ACCENT_HIEROPHANT
+@export var accent_singer: Color = ACCENT_SINGER
+
 
 ## 按 Token 名取权威色。给 lint / 测试 / 数据驱动资源用；
 ## 游戏代码请直接写 `ColorTokens.THREAT`（静态、零查表开销）。
@@ -160,6 +192,22 @@ static func get_token(token_name: StringName) -> Color:
 			return GATE_READY
 		&"INACTIVE":
 			return INACTIVE
+		&"ACCENT_ASH":
+			return ACCENT_ASH
+		&"ACCENT_VOID":
+			return ACCENT_VOID
+		&"ACCENT_OATH":
+			return ACCENT_OATH
+		&"ACCENT_HEART":
+			return ACCENT_HEART
+		&"ACCENT_RANGER":
+			return ACCENT_RANGER
+		&"ACCENT_GALE":
+			return ACCENT_GALE
+		&"ACCENT_HIEROPHANT":
+			return ACCENT_HIEROPHANT
+		&"ACCENT_SINGER":
+			return ACCENT_SINGER
 		&"ENV_GRASS", &"ENV_SOIL":
 			return ENV_GRASS if token_name == &"ENV_GRASS" else ENV_SOIL
 	push_error("ColorTokens: 未知 Token 名 '%s'（权威表见 %s）" % [token_name, SOURCE_OF_TRUTH])
@@ -172,6 +220,9 @@ static func all_token_names() -> PackedStringArray:
 		"PLAYER_ALLY_MAIN", "RESONANCE_GLOW", "FRIENDLY_TEAL", "FRIENDLY_GOLD",
 		"FRIENDLY_CORAL", "THREAT", "DAMAGE_WARN", "HEAL_BUFF", "UI_BG",
 		"SKY_AZURE", 		"GATE_READY", "INACTIVE", "ENV_GRASS", "ENV_SOIL",
+		# 角色签名色（§4.6）
+		"ACCENT_ASH", "ACCENT_VOID", "ACCENT_OATH", "ACCENT_HEART",
+		"ACCENT_RANGER", "ACCENT_GALE", "ACCENT_HIEROPHANT", "ACCENT_SINGER",
 		# 别名（合法引用，非退役名）
 		"FRIENDLY_AMBER", "UI_BASE", "INTERACT",
 	])

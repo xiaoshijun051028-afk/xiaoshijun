@@ -37,6 +37,10 @@ func _add(mesh: Mesh, color: Color, pos: Vector3, rot: Vector3 = Vector3.ZERO, e
 	mi.material_override = _mat(color, emissive)
 	mi.position = pos
 	mi.rotation_degrees = rot
+	if emissive:
+		# 记录还原色：Godot 4.7 下 StandardMaterial3D.emissive 的 getter 已失效，
+		# flash_hit 还原时不能直接读 m.emissive（会报 Invalid access），故走 meta。
+		mi.set_meta("orig_emissive", color)
 	add_child(mi)
 	return mi
 
@@ -106,16 +110,15 @@ func flash_hit() -> void:
 		var m := mi.material_override as StandardMaterial3D
 		if m == null:
 			continue
-		var orig_emissive: Color = m.emissive
-		var orig_enabled: bool = m.emissive_enabled
+		# 还原色来自构建时记录的 meta（规避 Godot 4.7 emissive getter 失效报错）。
+		var orig: Color = mi.get_meta("orig_emissive", Color(0.0, 0.0, 0.0))
 		m.emissive_enabled = true
 		m.emissive = Color(1.0, 1.0, 1.0)
 		# 0.12s 后还原（用 Timer 而非对 emissive 做 Tween，规避属性访问告警；并保护 instance 有效性）。
 		var t := get_tree().create_timer(0.12)
 		t.timeout.connect(func():
 			if is_instance_valid(m):
-				m.emissive = orig_emissive
-				m.emissive_enabled = orig_enabled
+				m.emissive = orig
 		)
 
 

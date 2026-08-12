@@ -64,15 +64,30 @@ func build(id: StringName) -> void:
 ## 所有机甲 accent emissive 统一为青白谐波虹膜 RESONANCE_GLOW，仅靠剪影区分职阶。
 func _spec_for(id: StringName) -> Dictionary:
 	match id:
-		&"ash_acolyte":         return {"builder": _build_blade,         "accent": ColorTokens.RESONANCE_GLOW}
-		&"voidblade_lord":      return {"builder": _build_voidblade,    "accent": ColorTokens.RESONANCE_GLOW}
-		&"oath_guard":          return {"builder": _build_bulwark,      "accent": ColorTokens.RESONANCE_GLOW}
-		&"bulwark_heart":       return {"builder": _build_bulwark_heart,"accent": ColorTokens.RESONANCE_GLOW}
-		&"swift_ranger":        return {"builder": _build_windchaser,   "accent": ColorTokens.RESONANCE_GLOW}
-		&"gale_echo":           return {"builder": _build_gale,         "accent": ColorTokens.RESONANCE_GLOW}
-		&"resonant_hierophant": return {"builder": _build_hierophant,   "accent": ColorTokens.RESONANCE_GLOW}
-		&"resonant_singer":     return {"builder": _build_singer,       "accent": ColorTokens.RESONANCE_GLOW}
-		_:                      return {"builder": _build_blade,         "accent": ColorTokens.RESONANCE_GLOW}
+		&"ash_acolyte":         return {"builder": _build_blade,         "accent": accent_of(id)}
+		&"voidblade_lord":      return {"builder": _build_voidblade,    "accent": accent_of(id)}
+		&"oath_guard":          return {"builder": _build_bulwark,      "accent": accent_of(id)}
+		&"bulwark_heart":       return {"builder": _build_bulwark_heart,"accent": accent_of(id)}
+		&"swift_ranger":        return {"builder": _build_windchaser,   "accent": accent_of(id)}
+		&"gale_echo":           return {"builder": _build_gale,         "accent": accent_of(id)}
+		&"resonant_hierophant": return {"builder": _build_hierophant,   "accent": accent_of(id)}
+		&"resonant_singer":     return {"builder": _build_singer,       "accent": accent_of(id)}
+		_:                      return {"builder": _build_blade,         "accent": accent_of(id)}
+
+
+## 角色签名色查询（单一真相源）：模型与 CombatVFX 共用，确保「同一角色模型与特效同色」。
+## 默认 ash_acolyte 旭金（未知 id 兜底）。
+static func accent_of(id: StringName) -> Color:
+	match id:
+		&"ash_acolyte":         return ColorTokens.ACCENT_ASH
+		&"voidblade_lord":      return ColorTokens.ACCENT_VOID
+		&"oath_guard":          return ColorTokens.ACCENT_OATH
+		&"bulwark_heart":       return ColorTokens.ACCENT_HEART
+		&"swift_ranger":        return ColorTokens.ACCENT_RANGER
+		&"gale_echo":           return ColorTokens.ACCENT_GALE
+		&"resonant_hierophant": return ColorTokens.ACCENT_HIEROPHANT
+		&"resonant_singer":     return ColorTokens.ACCENT_SINGER
+		_:                      return ColorTokens.ACCENT_ASH
 
 
 # --- 材质（例程级缓存，整机甲共享 ≤6 个材质实例）-----------------------------------
@@ -207,6 +222,11 @@ func _build_chassis(heavy: bool, slim: bool) -> void:
 		_add(_taper(0.10, 0.13, 0.50), _m_chassis, Vector3(sx, 0.12, 0))
 		_add(_box(0.16, 0.26, 0.14), _m_dark, Vector3(sx, 0.10, 0.05))   # 胫甲暗甲
 		_add(_box(0.18, 0.10, 0.28), _m_chassis, Vector3(sx, 0.0, 0.08)) # 脚
+
+	# 腰封（签名色发光束，收束躯干与腿过渡，增加精致度）。
+	_add(_box(tw * 0.92, 0.10, td * 0.92), _m_accent, Vector3(0, 0.82, 0.02))
+	# 脚底光环（签名色贴地环，接地 + 预览展示底座感）。
+	_add(_torus(0.50, 0.64), _m_accent, Vector3(0, 0.03, 0), Vector3(90, 0, 0))
 
 
 # 沿躯干/肩/腿的发光共鸣回路（面板缝）+ 胸口动力核心（阵营结构色，全 8 台共用）。

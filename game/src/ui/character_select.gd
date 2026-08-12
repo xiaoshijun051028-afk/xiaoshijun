@@ -302,26 +302,26 @@ func _build_preview() -> void:
 	_preview_container.add_child(vp)
 	_preview_sub = vp
 
-	# 摄影机：正对机身中段、略仰视。
+	# 摄影机：正对机身中段、略仰视（先入树再 look_at，避免「Node not inside tree」）。
 	var cam := Camera3D.new()
 	cam.position = Vector3(0.0, 1.35, 4.0)
-	cam.look_at(Vector3(0.0, 1.25, 0.0), Vector3.UP)
 	vp.add_child(cam)
+	cam.look_at(Vector3(0.0, 1.25, 0.0), Vector3.UP)
 
 	# 打光：主光（白）+ 补光（苍穹蓝）+ 轮廓光（青白），保证无环境也能看清 albedo 与 emissive。
 	var key := DirectionalLight3D.new()
 	key.position = Vector3(3.0, 5.0, 4.0)
-	key.look_at(Vector3.ZERO)
 	key.light_color = Color.WHITE
 	key.light_energy = 1.6
 	vp.add_child(key)
+	key.look_at(Vector3.ZERO)
 
 	var fill := DirectionalLight3D.new()
 	fill.position = Vector3(-4.0, 2.0, -2.0)
-	fill.look_at(Vector3.ZERO)
 	fill.light_color = ColorTokens.SKY_AZURE
 	fill.light_energy = 0.5
 	vp.add_child(fill)
+	fill.look_at(Vector3.ZERO)
 
 	var rim := OmniLight3D.new()
 	rim.position = Vector3(0.0, 1.4, -3.0)

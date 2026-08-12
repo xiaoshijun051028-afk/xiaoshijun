@@ -130,6 +130,24 @@
 | `ENV_GRASS` | 草原地表·中绿 | `#4E7A3A` | `(0.306, 0.478, 0.227)` | 草原地面 albedo、草丛主色 | 草原地图环境美术（非语义）|
 | `ENV_SOIL` | 土壤/地形阴影·暖褐 | `#5A4632` | `(0.353, 0.275, 0.196)` | 草丛根部、起伏阴影、结构色 | 草原地图环境美术（非语义）|
 
+## 4.6 角色签名色（Character Signature Colors）
+
+> S10「不同人物特效完全不一样」需求（主理人游承峰定稿）。每个出战角色一枚独立签名色，
+> **仅**用于该角色模型的共鸣回路/识别件与专属战斗特效；不承载攻防语义，不触碰 `THREAT` 铁律。
+> 谱系落在友方明亮区间、8 个互异 hue，遵循 gacha 单位主题色惯例（非文策渊语义信号表项）。
+> 工程落点 `ColorTokens.ACCENT_*`（§1 同款 const / @export / `get_token` 三处同步）。
+
+| Token | 角色 | 中文名 | hex | Godot Color | 用途 |
+|---|---|---|---|---|---|
+| `ACCENT_ASH` | ash_acolyte | 锋刃·旭金 | `#FFD66B` | `(1.0, 0.839, 0.420)` | 暖金剑光、单剑剪影 |
+| `ACCENT_VOID` | voidblade_lord | 断空·霜白 | `#BFE3FF` | `(0.749, 0.890, 1.0)` | 冷银霜刃、双巨剑 |
+| `ACCENT_OATH` | oath_guard | 磐盾·皇家蓝 | `#4F8BFF` | `(0.310, 0.545, 1.0)` | 厚重守护、塔盾 |
+| `ACCENT_HEART` | bulwark_heart | 磐心·玉青 | `#2FD6C0` | `(0.184, 0.839, 0.753)` | 双心核脉冲、短盾 |
+| `ACCENT_RANGER` | swift_ranger | 风追·炽橙 | `#FF7A4D` | `(1.0, 0.478, 0.302)` | 流线疾袭、长枪羽翼 |
+| `ACCENT_GALE` | gale_echo | 疾风·玫红 | `#FF5FA8` | `(1.0, 0.373, 0.659)` | 半透翼、光环 |
+| `ACCENT_HIEROPHANT` | resonant_hierophant | 谐律主祭·碧蓝 | `#6FF0FF` | `(0.435, 0.941, 1.0)` | 大头光环、环杖 |
+| `ACCENT_SINGER` | resonant_singer | 共鸣歌者·紫晶 | `#B98CFF` | `(0.725, 0.549, 1.0)` | 发束头饰、浮游球 |
+
 ## 5. 下一步 / 交接
 - **文策渊**：将 systems-index §2 语义色 hex 同步为本文件值（THREAT / RESONANCE_GLOW / FRIENDLY teal·gold·coral / 伤害 / 治疗 / UI_BG），并改为引用本 ColorTokens 单资源（避免二次漂移）。
 - **美术圣经**：可在 §2 末新增 §2.6「权威 hex 见 `design/color-tokens.md`」交叉引用（可选，不阻塞）。

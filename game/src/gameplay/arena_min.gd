@@ -276,8 +276,8 @@ func _resolve_slash() -> void:
 		if model != null and model.has_method("flash_hit"):
 			model.flash_hit()
 		if _vfx != null:
-			_vfx.hit_impact(target.global_position + Vector3(0.0, 1.0, 0.0), ColorTokens.RESONANCE_GLOW)
-			_vfx.damage_popup(target.global_position + Vector3(0.0, 1.7, 0.0), dealt, ColorTokens.RESONANCE_GLOW)
+			_vfx.hit_impact(target.global_position + Vector3(0.0, 1.0, 0.0), _vfx.accent)
+			_vfx.damage_popup(target.global_position + Vector3(0.0, 1.7, 0.0), dealt, _vfx.accent)
 	if back_hit:
 		_toast("弱点命中 ×%.1f  -%d" % [target.definition.weakpoint_multiplier, dealt])
 	else:
@@ -301,7 +301,7 @@ func _resolve_finisher() -> void:
 		var model: Node = target.get_node_or_null("Model")
 		if model != null and model.has_method("flash_hit"):
 			model.flash_hit()
-		_vfx.damage_popup(target.global_position + Vector3(0.0, 1.9, 0.0), dealt, ColorTokens.RESONANCE_GLOW)
+		_vfx.damage_popup(target.global_position + Vector3(0.0, 1.9, 0.0), dealt, _vfx.accent)
 
 
 ## 敌人挥出攻击的那一帧。先问完美格（PARRY_WINDOW 内且 armed 才算），
@@ -661,6 +661,12 @@ func _build_player() -> void:
 	if _active != null:
 		model_id = _active.character_id
 	_model.build(model_id)
+
+	# 战斗特效主题化：把当前出战角色的签名色与 id 写入 CombatVFX，
+	# 使 slash/finisher/skill_cast 走该角色专属样式 + 配色（与模型同源）。
+	if _vfx != null and _active != null:
+		_vfx.accent = CharacterModel.accent_of(_active.character_id)
+		_vfx.profile = _active.character_id
 
 	_player = PlayerCombat.new()
 	_player.name = "PlayerCombat"
