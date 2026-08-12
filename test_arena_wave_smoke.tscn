@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://btestarenawavesmoke"]
+
+[ext_resource type="Script" path="res://test_arena_wave_smoke.gd" id="1_arenawave"]
+
+[node name="TestArenaWave" type="Node"]
+script = ExtResource("1_arenawave")

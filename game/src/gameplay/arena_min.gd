@@ -1,7 +1,7 @@
 class_name ArenaMin
 extends Node3D
 ## 最小可玩竞技场（design/gdd/ux/opening-ui.md）。把 S0/S1/S4/S9 已有系统在一个场景里接通：
-## 出战角色数值注入 → 样本模型 → 6 动词战斗 → 训练木桩 telegraph/格挡 → 共鸣池 → 角色技能。
+## 出战角色数值注入 → 样本模型 → 6 动词战斗 → 真敌人波次（逼近/起手/格挡）→ 共鸣池 → 角色技能。
 ##
 ## 本类是**宿主（host）**，不是新系统。纪律：
 ##   1. 战斗 FSM / 敌人 FSM 的推进只经各自 `physics_tick()`，本类不直接改任何状态。
@@ -25,15 +25,24 @@ const DASH_SPEED: float = 18.0
 const ATTACK_RANGE: float = 2.8
 const SLASH_BASE_DAMAGE: int = 12
 const FINISHER_BASE_DAMAGE: int = 60
-## 木桩起手周期（秒）。Idle 满这么久就起 telegraph，给玩家练格挡。
-const DUMMY_ATTACK_PERIOD: float = 4.0
-const DUMMY_RESPAWN_DELAY: float = 2.0
+## RangeRing 参考环定位用（仅表现）。
 const DUMMY_SPAWN_POS: Vector3 = Vector3(0.0, 0.0, -6.0)
 const PLAYER_SPAWN_POS: Vector3 = Vector3(0.0, 0.0, 2.5)
 const CAM_OFFSET: Vector3 = Vector3(0.0, 6.2, 8.4)
 ## 背击判定阈值：玩家→敌人向量与敌人面朝方向的点积超过此值即算绕到背后。
 const BACK_HIT_DOT: float = 0.35
 const RARITY_LABEL: Array[String] = ["N", "R", "SR", "SSR"]
+
+## ── 波次 / 真敌人生存参数 ──
+const WAVE_SIZE: int = 3
+const WAVE_DELAY: float = 2.5
+## 敌人进入此距离即起手攻击（xz 平面）。
+const ENEMY_ATTACK_RANGE: float = 2.6
+## 在攻击距离内 Idle 满此秒数则起手 telegraph。
+const ENEMY_ATTACK_PERIOD: float = 2.2
+const ENEMY_SPAWN_Z: float = -6.0
+const ENEMY_SPAWN_X: Array[float] = [-3.0, 0.0, 3.0]
+const ENEMY_TYPES: Array[StringName] = [&"brute", &"skirmisher", &"sentinel"]
 
 # ─────────────────────────────────────────────────────────────
 # 运行时
@@ -42,17 +51,23 @@ const RARITY_LABEL: Array[String] = ["N", "R", "SR", "SSR"]
 var _rig: CharacterBody3D = null
 var _player: PlayerCombat = null
 var _model: CharacterModel = null
+## 场上所有存活敌人。
+var _enemies: Array[EnemyCombat] = []
+## 当前目标（最近存活敌人），供技能控制器 / 斩击 / HUD 使用。
 var _enemy: EnemyCombat = null
-var _enemy_model: EnemyModel = null
+## 每敌运行时状态：{idle: float, last: StringName}。键为 EnemyCombat 实例。
+var _enemy_rt: Dictionary = {}
 var _skills: SkillController = null
 var _cam: Camera3D = null
 var _active: CharacterInstance = null
+## 轻量战斗特效层（CombatVFX）。
+var _vfx: CombatVFX = null
 
 var _dash_frames_left: int = 0
 var _dash_dir: Vector3 = Vector3.ZERO
-var _dummy_clock: float = 0.0
-var _respawn_clock: float = 0.0
-var _last_enemy_state: StringName = &""
+var _wave_clock: float = 0.0
+var _wave_pending: bool = false
+var _wave_count: int = 0
 var _toast_clock: float = 0.0
 
 var _lbl_char: Label = null
@@ -70,23 +85,34 @@ func _ready() -> void:
 	_active = RosterAutoload.ensure_playable()
 	_build_world()
 	_build_player()
-	_spawn_dummy()
+	_spawn_wave()
 	_build_camera()
 	_build_hud()
+
+	_vfx = CombatVFX.new()
+	_vfx.name = "CombatVFX"
+	add_child(_vfx)
 
 	_skills = SkillController.new()
 	_skills.name = "SkillController"
 	add_child(_skills)
 	_skills.request_dash.connect(_on_skill_dash)
 	_skills.setup(_active, _player, _enemy)
+	_update_target()
 
 	EventBus.enemy_died.connect(_on_enemy_died)
+	EventBus.enemy_telegraph_started.connect(_on_enemy_telegraph_started)
+	EventBus.perfect_parry_landed.connect(_on_perfect_parry_vfx)
 	_toast("R = 角色技能 · Q = 格挡 · F = 共鸣终结技")
 
 
 func _exit_tree() -> void:
 	if EventBus.enemy_died.is_connected(_on_enemy_died):
 		EventBus.enemy_died.disconnect(_on_enemy_died)
+	if EventBus.enemy_telegraph_started.is_connected(_on_enemy_telegraph_started):
+		EventBus.enemy_telegraph_started.disconnect(_on_enemy_telegraph_started)
+	if EventBus.perfect_parry_landed.is_connected(_on_perfect_parry_vfx):
+		EventBus.perfect_parry_landed.disconnect(_on_perfect_parry_vfx)
 	# 场景切走时若仍在完美格慢动作里，必须复原时间缩放，否则主菜单会以 0.3× 运行。
 	if _player != null:
 		_player.end_time_dilation()
@@ -96,10 +122,12 @@ func _physics_process(delta: float) -> void:
 	_route_input()
 	_tick_movement(delta)
 	_player.physics_tick(delta)
-	if _enemy != null and is_instance_valid(_enemy):
-		_enemy.physics_tick(delta)
+	for e in _enemies:
+		if is_instance_valid(e):
+			e.physics_tick(delta)
 	_skills.tick(delta)
-	_tick_dummy(delta)
+	_tick_enemies(delta)
+	_tick_waves(delta)
 	_update_camera(delta)
 	_update_hud(delta)
 
@@ -192,6 +220,8 @@ func _begin_dash(forced_dir: Vector3) -> void:
 	_dash_dir = d.normalized()
 	# 位移持续帧对齐无敌帧，让「闪避 = 穿过攻击」在观感上自洽（不修改 DASH_IFRAMES 本身）。
 	_dash_frames_left = GameConstants.DASH_IFRAMES
+	if _vfx != null:
+		_vfx.dash_trail(_rig.global_position + Vector3(0.0, 1.0, 0.0))
 
 
 func _on_skill_dash(impulse: Vector3) -> void:
@@ -206,123 +236,221 @@ func _on_skill_dash(impulse: Vector3) -> void:
 # ─────────────────────────────────────────────────────────────
 
 func _resolve_slash() -> void:
-	if not _enemy_alive():
+	var target := _pick_target(ATTACK_RANGE)
+	if target == null:
 		return
-	var to_enemy: Vector3 = _enemy.global_position - _rig.global_position
+	var to_enemy: Vector3 = target.global_position - _rig.global_position
 	to_enemy.y = 0.0
 	if to_enemy.length() > ATTACK_RANGE:
 		return
 	# 背击 = 弱点：玩家→敌人的方向与敌人面朝同向时，说明玩家绕到了背后。
-	var enemy_fwd: Vector3 = -_enemy.global_transform.basis.z
+	var enemy_fwd: Vector3 = -target.global_transform.basis.z
 	var back_hit: bool = enemy_fwd.dot(to_enemy.normalized()) > BACK_HIT_DOT
-	var dealt: int = _enemy.take_damage(_skills.compute_damage(SLASH_BASE_DAMAGE), back_hit)
+	var dealt: int = target.take_damage(_skills.compute_damage(SLASH_BASE_DAMAGE), back_hit)
 	ResonancePool.add(GameConstants.GAIN_HIT, ResonancePool.SOURCE_HIT)
 	ResonancePool.notify_combat_contact()
 	if back_hit:
-		_toast("弱点命中 ×%.1f  -%d" % [_enemy.definition.weakpoint_multiplier, dealt])
+		_toast("弱点命中 ×%.1f  -%d" % [target.definition.weakpoint_multiplier, dealt])
 	else:
 		_toast("命中 -%d" % dealt)
+	if _vfx != null:
+		_vfx.hit_impact(target.global_position + Vector3(0.0, 1.0, 0.0), ColorTokens.RESONANCE_GLOW)
 
 
 func _resolve_finisher() -> void:
-	if not _enemy_alive():
+	var target := _pick_target(ATTACK_RANGE * 2.0)
+	if target == null:
 		_toast("共鸣终结技 · 空挥")
 		return
-	var d: Vector3 = _enemy.global_position - _rig.global_position
+	var d: Vector3 = target.global_position - _rig.global_position
 	d.y = 0.0
 	if d.length() > ATTACK_RANGE * 2.0:
 		_toast("共鸣终结技 · 未命中")
 		return
-	var dealt: int = _enemy.take_damage(_skills.compute_damage(FINISHER_BASE_DAMAGE))
+	var dealt: int = target.take_damage(_skills.compute_damage(FINISHER_BASE_DAMAGE))
 	_toast("共鸣终结技！-%d" % dealt)
+	if _vfx != null:
+		_vfx.finisher(target.global_position + Vector3(0.0, 1.0, 0.0))
 
 
-## 木桩挥出攻击的那一帧。先问完美格（PARRY_WINDOW 内且 armed 才算），
-## 不成立再按定义伤害结算——训练木桩 attack_damage = 0，故失败也不掉血，可反复练。
-func _resolve_enemy_strike() -> void:
-	if _player.parry_incoming(_enemy):
+## 敌人挥出攻击的那一帧。先问完美格（PARRY_WINDOW 内且 armed 才算），
+## 不成立再按定义伤害结算——真敌人 attack_damage > 0，故会真正掉血。
+func _resolve_enemy_strike_for(enemy: EnemyCombat) -> void:
+	if _player.parry_incoming(enemy):
 		_toast("完美格挡！+%d 共鸣 · 破防 %d 帧"
 			% [GameConstants.GAIN_PERFECT_PARRY, GameConstants.ENEMY_STAGGER_FRAMES])
 		return
 	var dmg: int = 0
-	if _enemy.definition != null:
-		dmg = _enemy.definition.attack_damage
+	if enemy.definition != null:
+		dmg = enemy.definition.attack_damage
 	if dmg <= 0:
-		_toast("木桩挥空（训练弹 0 伤害，可反复练格挡）")
+		_toast("攻击落空（0 伤害）")
 		return
 	var taken: int = _player.take_damage(dmg)
 	if taken > 0:
 		_player.take_hit(GameConstants.HITSTUN_MAX_FRAMES)
 		_toast("受击 -%d" % taken)
+		if _vfx != null:
+			_vfx.hit_impact(_rig.global_position + Vector3(0.0, 1.0, 0.0), ColorTokens.THREAT)
 	else:
 		_toast("无敌帧免疫")
 
 
 # ─────────────────────────────────────────────────────────────
-# 训练木桩
+# 真敌人波次（替换原训练木桩：进场即有敌、会逼近、会起手、清场刷下一波）
 # ─────────────────────────────────────────────────────────────
 
-func _tick_dummy(delta: float) -> void:
-	if _enemy == null or not is_instance_valid(_enemy):
-		return
-	if _enemy.hp <= 0:
-		_respawn_clock -= delta
-		if _respawn_clock <= 0.0:
-			_replace_dummy()
-		return
+## 每物理帧推进所有敌人：逼近 / 起手 telegraph / 捕捉 Attack 帧结算。
+func _tick_enemies(delta: float) -> void:
+	for e in _enemies:
+		if not is_instance_valid(e) or e.hp <= 0:
+			continue
+		var to_p: Vector3 = _rig.global_position - e.global_position
+		to_p.y = 0.0
+		var dist: float = to_p.length()
+		var rt: Dictionary = _enemy_rt.get(e, {})
+		var last: StringName = rt.get("last", &"")
+		var idle_clock: float = rt.get("idle", 0.0)
+		var st: StringName = e.current_state_name()
 
-	var st: StringName = _enemy.current_state_name()
-	# Telegraph 自然收尽会转 Attack；捕捉「刚进 Attack」这一帧做格挡/伤害结算。
-	if st == EnemyCombat.STATE_ATTACK and _last_enemy_state != EnemyCombat.STATE_ATTACK:
-		_resolve_enemy_strike()
-	_last_enemy_state = st
+		# Telegraph 自然收尽转 Attack；捕捉「刚进 Attack」这一帧做格挡/伤害结算。
+		if st == EnemyCombat.STATE_ATTACK and last != EnemyCombat.STATE_ATTACK:
+			_resolve_enemy_strike_for(e)
 
-	if st == EnemyCombat.STATE_IDLE:
-		_dummy_clock += delta
-		if _dummy_clock >= DUMMY_ATTACK_PERIOD:
-			_dummy_clock = 0.0
-			_enemy.state_machine.try_transition(EnemyCombat.STATE_TELEGRAPH)
-	else:
-		_dummy_clock = 0.0
+		if dist > ENEMY_ATTACK_RANGE:
+			if dist > 0.001:
+				var step_len: float = e.definition.move_speed * delta
+				e.global_position += to_p.normalized() * step_len
+				e.rotation.y = atan2(-to_p.x, -to_p.z)
+			idle_clock = 0.0
+		else:
+			# 在攻击距离内：Idle 满周期则起手 telegraph。
+			if st == EnemyCombat.STATE_IDLE:
+				idle_clock += delta
+				if idle_clock >= ENEMY_ATTACK_PERIOD:
+					idle_clock = 0.0
+					e.state_machine.try_transition(EnemyCombat.STATE_TELEGRAPH)
+			else:
+				idle_clock = 0.0
+
+		rt["idle"] = idle_clock
+		rt["last"] = st
+		_enemy_rt[e] = rt
+
+
+## 清场后延迟刷新下一波。
+func _tick_waves(delta: float) -> void:
+	if not _wave_pending:
+		return
+	_wave_clock -= delta
+	if _wave_clock <= 0.0:
+		_wave_pending = false
+		_spawn_wave()
+
+
+## 刷一波混合真敌人（brute/skirmisher/sentinel 轮流），x 轴散开、z 轴前置。
+func _spawn_wave() -> void:
+	_wave_count += 1
+	for i in range(WAVE_SIZE):
+		var type_id: StringName = ENEMY_TYPES[i % ENEMY_TYPES.size()]
+		var def := load("res://game/resources/enemy_defs/%s.tres" % type_id) as EnemyDefinition
+		var en := EnemyCombat.new()
+		en.name = "Enemy_%d_%d" % [_wave_count, i]
+		# 必须在入树前灌定义：EnemyCombat._ready() 会用空定义抢先 initialize()（幂等自锁）。
+		en.initialize(def)
+		var x: float = ENEMY_SPAWN_X[i] if i < ENEMY_SPAWN_X.size() else 0.0
+		en.position = Vector3(x, 0.0, ENEMY_SPAWN_Z)
+		# 面朝 +Z（玩家出生方向），这样「绕到背后」才是玩家要主动做的事。
+		en.rotation.y = PI
+		add_child(en)
+
+		var model := EnemyModel.new()
+		model.name = "Model"
+		en.add_child(model)
+		model.build(type_id)
+
+		_enemies.append(en)
+		_enemy_rt[en] = {"idle": 0.0, "last": &""}
+	_update_target()
+	_toast("第 %d 波 · %d 敌来袭" % [_wave_count, _enemies.size()])
 
 
 func _on_enemy_died(who: Node3D) -> void:
-	if who != _enemy:
-		return
-	_respawn_clock = DUMMY_RESPAWN_DELAY
-	_toast("木桩已破坏 · %.0f 秒后重置" % DUMMY_RESPAWN_DELAY)
+	if who is EnemyCombat and who in _enemies:
+		_enemies.erase(who)
+		_enemy_rt.erase(who)
+		who.queue_free()
+	_update_target()
+	if _enemies.is_empty():
+		_wave_pending = true
+		_wave_clock = WAVE_DELAY
+		_toast("清场！%.0f 秒后下一波" % WAVE_DELAY)
 
 
-## Dead 是终态（邻接表无出边），故重置木桩 = 换一个新实例，而不是把死态硬拽回 Idle。
-func _replace_dummy() -> void:
-	if _enemy != null and is_instance_valid(_enemy):
-		_enemy.queue_free()
-	_enemy = null
-	_spawn_dummy()
-	_skills.set_enemy(_enemy)
-	_last_enemy_state = &""
-	_dummy_clock = 0.0
+## 每帧重选最近存活敌人为当前目标（供技能控制器 / 斩击 / HUD 使用）。
+func _update_target() -> void:
+	var best: EnemyCombat = null
+	var best_d: float = INF
+	for e in _enemies:
+		if not is_instance_valid(e) or e.hp <= 0:
+			continue
+		var d: float = _rig.global_position.distance_to(e.global_position)
+		if d < best_d:
+			best_d = d
+			best = e
+	# 仅当目标变化时才通知技能控制器。
+	if best != _enemy:
+		_enemy = best
+		if _skills != null:
+			_skills.set_enemy(_enemy)
 
 
-func _spawn_dummy() -> void:
-	var def := load("res://game/resources/enemy_defs/dummy.tres") as EnemyDefinition
-	_enemy = EnemyCombat.new()
-	_enemy.name = "Dummy"
-	# 必须在入树前灌定义：EnemyCombat._ready() 会用空定义抢先 initialize()（幂等自锁）。
-	_enemy.initialize(def)
-	_enemy.position = DUMMY_SPAWN_POS
-	# 面朝 +Z（玩家出生方向），这样「绕到背后」才是玩家要主动做的事。
-	_enemy.rotation.y = PI
-	add_child(_enemy)
-
-	_enemy_model = EnemyModel.new()
-	_enemy_model.name = "Model"
-	_enemy.add_child(_enemy_model)
-	_enemy_model.build(&"dummy")
+## 选攻击距离内最近敌人（斩击 / 终结技命中判定）。
+func _pick_target(range_limit: float) -> EnemyCombat:
+	var best: EnemyCombat = null
+	var best_d: float = range_limit
+	for e in _enemies:
+		if not is_instance_valid(e) or e.hp <= 0:
+			continue
+		var d: float = _rig.global_position.distance_to(e.global_position)
+		if d <= best_d:
+			best_d = d
+			best = e
+	return best
 
 
-func _enemy_alive() -> bool:
-	return _enemy != null and is_instance_valid(_enemy) and _enemy.hp > 0
+# ─────────────────────────────────────────────────────────────
+# VFX 钩子（消费 EventBus 信号 + 直接调用 CombatVFX）
+# ─────────────────────────────────────────────────────────────
+
+func _on_enemy_telegraph_started(enemy: Node3D, _frames: int) -> void:
+	if _vfx != null:
+		_vfx.enemy_telegraph(enemy.global_position + Vector3(0.0, 0.15, 0.0), float(_frames) / 60.0)
+
+
+func _on_perfect_parry_vfx(_attacker: Node3D) -> void:
+	if _vfx != null:
+		_vfx.perfect_parry(_rig.global_position + Vector3(0.0, 1.0, 0.0))
+
+
+# ─────────────────────────────────────────────────────────────
+# 测试用调试接口（仅供无头冒烟测试读取私有状态）
+# ─────────────────────────────────────────────────────────────
+
+func debug_enemy_count() -> int:
+	return _enemies.size()
+
+
+func debug_target() -> EnemyCombat:
+	return _enemy
+
+
+func debug_player_pos() -> Vector3:
+	return _rig.global_position if _rig != null else Vector3.ZERO
+
+
+func debug_force_slash() -> void:
+	_resolve_slash()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -489,9 +617,11 @@ func _update_hud(delta: float) -> void:
 	_lbl_skill.text = "R · %s   %s" % [_skill_name(), _skill_cd_text()]
 
 	if _enemy != null and is_instance_valid(_enemy):
-		_lbl_enemy.text = "训练木桩 %d / %d   [%s]" % [
-			_enemy.hp, _enemy.max_hp, String(_enemy.current_state_name())
+		_lbl_enemy.text = "%s  %d / %d   [%s]" % [
+			String(_enemy.definition.enemy_id), _enemy.hp, _enemy.max_hp, String(_enemy.current_state_name())
 		]
+	elif _wave_pending:
+		_lbl_enemy.text = "下一波来袭…"
 	else:
 		_lbl_enemy.text = ""
 
